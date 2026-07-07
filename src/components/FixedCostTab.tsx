@@ -5,6 +5,7 @@ import {
   Trash2, 
   AlertCircle, 
   DollarSign, 
+  Calculator,
   Info 
 } from 'lucide-react';
 import { FixedCost, VariableCost, OtherRevenue } from '../types';
@@ -170,23 +171,38 @@ export default function FixedCostTab({ fixedCosts, setFixedCosts, variableCosts,
                 <button
                   type="button"
                   onClick={() => setEntryType('revenue')}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${entryType === 'revenue' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white' : 'bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                  className={`px-3 py-3 rounded-lg text-xs font-bold transition-all border-2 flex flex-col items-center justify-center space-y-1 ${
+                    entryType === 'revenue' 
+                      ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 text-emerald-700 dark:text-emerald-300 shadow-sm' 
+                      : 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300'
+                  }`}
                 >
-                  Entrada
+                  <DollarSign className="w-4 h-4" />
+                  <span>Entrada</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setEntryType('fixed')}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${entryType === 'fixed' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white' : 'bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                  className={`px-3 py-3 rounded-lg text-xs font-bold transition-all border-2 flex flex-col items-center justify-center space-y-1 ${
+                    entryType === 'fixed' 
+                      ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-600 text-zinc-900 dark:text-white shadow-sm' 
+                      : 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300'
+                  }`}
                 >
-                  Fixo
+                  <Briefcase className="w-4 h-4" />
+                  <span>Fixo</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setEntryType('variable')}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${entryType === 'variable' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white' : 'bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                  className={`px-3 py-3 rounded-lg text-xs font-bold transition-all border-2 flex flex-col items-center justify-center space-y-1 ${
+                    entryType === 'variable' 
+                      ? 'bg-brand-orange/10 dark:bg-brand-orange/20 border-brand-orange text-brand-orange shadow-sm' 
+                      : 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300'
+                  }`}
                 >
-                  Variável
+                  <Calculator className="w-4 h-4" />
+                  <span>Variável</span>
                 </button>
               </div>
             </div>

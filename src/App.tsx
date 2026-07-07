@@ -632,6 +632,7 @@ export default function App() {
                   fixedCosts={fixedCosts} 
                   variableCosts={variableCosts}
                   otherRevenues={otherRevenues}
+                  sales={sales}
                 />
               )}
               {activeTab === 'receitas' && (

@@ -31,6 +31,26 @@
         "monthlyValue": { "type": "number" }
       }
     },
+    "VariableCost": {
+      "title": "VariableCost",
+      "description": "Variable monthly cost details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "monthlyValue": { "type": "number" }
+      }
+    },
+    "OtherRevenue": {
+      "title": "OtherRevenue",
+      "description": "Extra revenues details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "monthlyValue": { "type": "number" }
+      }
+    },
     "Recipe": {
       "title": "Recipe",
       "description": "Recipe with ingredients",
@@ -68,6 +88,14 @@
     "fixedCosts": {
       "schema": "FixedCost",
       "description": "Store monthly fixed costs"
+    },
+    "variableCosts": {
+      "schema": "VariableCost",
+      "description": "Store monthly variable costs"
+    },
+    "otherRevenues": {
+      "schema": "OtherRevenue",
+      "description": "Store extra monthly revenues"
     },
     "recipes": {
       "schema": "Recipe",

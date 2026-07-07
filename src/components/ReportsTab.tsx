@@ -17,7 +17,7 @@ import {
   PieChart as PieIcon,
   HelpCircle
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost, OtherRevenue } from '../types';
+import { Product, Tax, FixedCost, VariableCost, OtherRevenue, Sale } from '../types';
 import { formatCurrency, formatPercent, getActiveTaxPercentage, calculateProductMetrics } from '../utils';
 import { 
   BarChart, 
@@ -38,9 +38,10 @@ interface ReportsTabProps {
   fixedCosts: FixedCost[];
   variableCosts: VariableCost[];
   otherRevenues: OtherRevenue[];
+  sales?: Sale[];
 }
 
-export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues }: ReportsTabProps) {
+export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [] }: ReportsTabProps) {
   // Sub-tabs: 'dia' | 'semana' | 'mes'
   const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
   
@@ -86,24 +87,43 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
     });
 
     const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
-    const totalVariable = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
-    const totalDespesas = totalFixed + totalVariable;
+    const totalVariableSpreadsheet = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+    const totalDespesas = totalFixed + totalVariableSpreadsheet;
     
+    // Include real PDV sales in totals
+    const pdvRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const pdvNetProfit = sales.reduce((sum, s) => sum + s.netProfit, 0);
+    const pdvIngredientsCost = sales.reduce((sum, s) => sum + s.totalCost, 0);
+    const pdvTaxes = sales.reduce((sum, s) => sum + s.taxesAmount, 0);
+    const pdvQty = sales.reduce((sum, s) => sum + s.items.reduce((acc, item) => acc + item.quantity, 0), 0);
+
+    const combinedRevenue = totalRevenue + pdvRevenue;
+    const combinedNetProfit = totalNetProfit + pdvNetProfit;
+    const combinedIngredientsCost = totalIngredientsCost + pdvIngredientsCost;
+    const combinedTaxes = totalTaxesPaid + pdvTaxes;
+    const combinedQty = totalQty + pdvQty;
+
     const totalOther = otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0);
-    const finalResult = totalNetProfit - totalDespesas + totalOther;
+    const finalResult = combinedNetProfit - totalDespesas + totalOther;
 
     return {
       productRows,
-      totalRevenue,
-      totalIngredientsCost,
-      totalTaxesPaid,
-      totalNetProfit, // Net profit from products (contribution margin in R$)
-      totalFixed: totalDespesas,
+      totalRevenue: combinedRevenue,
+      totalIngredientsCost: combinedIngredientsCost,
+      totalTaxesPaid: combinedTaxes,
+      totalNetProfit: combinedNetProfit, // Net profit from products (contribution margin in R$)
+      totalFixed,
+      totalVariableSpreadsheet,
+      totalDespesas,
       totalOther,
       finalResult, // Bottom-line cash left
-      totalQty
+      totalQty: combinedQty,
+      pdvRevenue,
+      pdvNetProfit,
+      simulatedRevenue: totalRevenue,
+      simulatedNetProfit: totalNetProfit
     };
-  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxPercentage]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, sales, activeTaxPercentage]);
 
   // 2. Calculations for "Por Dia" (Daily view)
   const dailyMetrics = useMemo(() => {
@@ -179,7 +199,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
   const weeklyDistributionData = useMemo(() => {
     const baseRev = monthlyMetrics.totalRevenue / 4.33;
     const baseProfit = monthlyMetrics.totalNetProfit / 4.33;
-    const baseFixed = monthlyMetrics.totalFixed / 4.33;
+    const baseFixed = (monthlyMetrics.totalFixed + monthlyMetrics.totalVariableSpreadsheet) / 4.33;
 
     // We can simulate slightly different performance across weeks (e.g. Week 1 is after payday, Week 3/4 are slightly calmer)
     const WEEKS_MULTIPLIERS = [1.15, 1.05, 0.90, 0.90]; // averages to ~1.0 per week over 4 weeks
@@ -233,7 +253,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
   const breakevenMetrics = useMemo(() => {
     const totalRev = monthlyMetrics.totalRevenue;
     const totalProfit = monthlyMetrics.totalNetProfit;
-    const fixedCostsValue = monthlyMetrics.totalFixed;
+    const fixedCostsValue = monthlyMetrics.totalFixed + monthlyMetrics.totalVariableSpreadsheet;
 
     // Contribution margin ratio
     const contributionMarginRatio = totalRev > 0 ? totalProfit / totalRev : 0;
@@ -258,6 +278,43 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
       itemsNeeded
     };
   }, [monthlyMetrics]);
+
+  // DRE Period-scaled spreadsheet calculation
+  const dreData = useMemo(() => {
+    let divisor = 1;
+    if (reportSubTab === 'semana') {
+      divisor = 4.33;
+    } else if (reportSubTab === 'dia') {
+      divisor = Math.max(1, operationalDays);
+    }
+
+    const productSales = monthlyMetrics.totalRevenue / divisor;
+    const otherRevenuesVal = monthlyMetrics.totalOther / divisor;
+    const totalEntradas = productSales + otherRevenuesVal;
+
+    const ingredientsCost = monthlyMetrics.totalIngredientsCost / divisor;
+    const taxesPaid = monthlyMetrics.totalTaxesPaid / divisor;
+    const variableSpreadsheet = monthlyMetrics.totalVariableSpreadsheet / divisor;
+    const totalVariaveis = ingredientsCost + taxesPaid + variableSpreadsheet;
+
+    const margemContribuicao = totalEntradas - totalVariaveis;
+
+    const fixedCostsVal = monthlyMetrics.totalFixed / divisor;
+    const sobraLiquida = margemContribuicao - fixedCostsVal;
+
+    return {
+      productSales,
+      otherRevenuesVal,
+      totalEntradas,
+      ingredientsCost,
+      taxesPaid,
+      variableSpreadsheet,
+      totalVariaveis,
+      margemContribuicao,
+      fixedCostsVal,
+      sobraLiquida
+    };
+  }, [reportSubTab, operationalDays, monthlyMetrics]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -344,90 +401,110 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
         <div className="space-y-6 animate-fade-in">
           
           {/* Daily Metrics Row - Full values shown explicitly */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
             
             {/* Card 1: Faturamento Diário */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-brand-orange rounded-md border border-zinc-100 dark:border-zinc-600">
                     <DollarSign className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Faturamento Diário Médio
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Faturamento / Dia
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
                   {formatCurrency(dailyMetrics.revenue)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Simulado para {operationalDays} dias operacionais
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Simulado ({operationalDays} dias)
               </p>
             </div>
 
             {/* Card 2: Lucro de Produtos Diário */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-brand-tomato/5 dark:bg-brand-tomato/10 text-brand-tomato rounded-md border border-brand-tomato/10">
                     <TrendingUp className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Lucro Prod. Diário Médio
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Lucro Prod. / Dia
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
                   {formatCurrency(dailyMetrics.productNetProfit)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Antes de amortizar os custos fixos
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Vendas - CMV e Taxas
               </p>
             </div>
 
-            {/* Card 3: Custo Fixo Diário */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center space-x-2.5 mb-3">
-                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
-                    <Briefcase className="w-4 h-4 text-brand-terracota dark:text-brand-orange" />
-                  </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Fração de Custo Fixo/Dia
-                  </p>
-                </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
-                  {formatCurrency(dailyMetrics.fixedCost)}
-                </h4>
-              </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Divisão linear das despesas fixas
-              </p>
-            </div>
-
-            {/* Card Extra: Receitas Extras Diário */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            {/* Card 3: Receitas Extras Diário */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between border-b-2 border-b-emerald-500/30">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
                     <DollarSign className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Receitas Extras / Dia
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Entradas Extra / Dia
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
                   {formatCurrency(dailyMetrics.otherRevenues)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Fração das receitas fora do iFood
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Receitas da Planilha
               </p>
             </div>
 
-            {/* Card 4: Sobra Diária Líquida */}
-            <div className={`p-5 rounded-lg border shadow-sm flex flex-col justify-between ${
+            {/* Card 4: Custo Fixo Diário */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
+                    <Briefcase className="w-4 h-4 text-brand-orange" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Fixos / Dia
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                  {formatCurrency(dailyMetrics.fixedCost)}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Aluguel, salários, etc.
+              </p>
+            </div>
+
+            {/* Card 5: Gastos Variáveis Diário */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
+                    <Calculator className="w-4 h-4 text-brand-orange" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Variáveis / Dia
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                  {formatCurrency(monthlyMetrics.totalVariableSpreadsheet / (operationalDays || 1))}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Energia, água, gás, etc.
+              </p>
+            </div>
+
+            {/* Card 6: Sobra Diária Líquida */}
+            <div className={`p-4 rounded-lg border shadow-sm flex flex-col justify-between ${
               dailyMetrics.finalResult >= 0 
                 ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-150 dark:border-emerald-900/50' 
                 : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-150 dark:border-rose-900/50'
@@ -441,11 +518,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   }`}>
                     <Award className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Sobra Líquida Diária
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Sobra Líquida / Dia
                   </p>
                 </div>
-                <h4 className={`text-xl sm:text-2xl font-bold tech-font-mono font-mono break-words ${
+                <h4 className={`text-xl font-bold tech-font-mono font-mono break-words ${
                   dailyMetrics.finalResult >= 0 
                     ? 'text-emerald-600 dark:text-emerald-400' 
                     : 'text-rose-600 dark:text-rose-400'
@@ -453,8 +530,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.finalResult)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Sobra real líquida por dia útil
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Resultado Final Livre
               </p>
             </div>
 
@@ -572,70 +649,110 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
         <div className="space-y-6 animate-fade-in">
           
           {/* Weekly Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
             
             {/* Card 1: Faturamento Semanal */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-brand-orange rounded-md border border-zinc-100 dark:border-zinc-600">
                     <DollarSign className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Faturamento Semanal Médio
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Faturamento / Sem
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
                   {formatCurrency(weeklyMetrics.revenue)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Faturamento esperado a cada 7 dias
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Simulado para 7 dias
               </p>
             </div>
 
             {/* Card 2: Lucro de Produtos Semanal */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-brand-tomato/5 dark:bg-brand-tomato/10 text-brand-tomato rounded-md border border-brand-tomato/10">
                     <TrendingUp className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Lucro Prod. Semanal Médio
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Lucro Prod. / Sem
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
                   {formatCurrency(weeklyMetrics.productNetProfit)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Faturamento líquido menos custos variáveis
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Faturamento - CMV e Taxas
               </p>
             </div>
 
-            {/* Card 3: Custos Fixos Semanais */}
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            {/* Card 3: Receitas Extras Sem */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between border-b-2 border-b-emerald-500/30">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Entradas Extra / Sem
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
+                  {formatCurrency(weeklyMetrics.otherRevenues)}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Ganhos extras na planilha
+              </p>
+            </div>
+
+            {/* Card 4: Custos Fixos Semanais */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
-                    <Briefcase className="w-4 h-4 text-brand-terracota dark:text-brand-orange" />
+                    <Briefcase className="w-4 h-4 text-brand-orange" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Custos Fixos Semanais
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Fixos / Sem
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
                   {formatCurrency(weeklyMetrics.fixedCost)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Fração das despesas operacionais fixas
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Fração das despesas fixas
               </p>
             </div>
 
-            {/* Card 4: Sobra Semanal */}
-            <div className={`p-5 rounded-lg border shadow-sm flex flex-col justify-between ${
+            {/* Card 5: Custos Variáveis Semanais */}
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
+                    <Calculator className="w-4 h-4 text-brand-orange" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Variáveis / Sem
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                  {formatCurrency(monthlyMetrics.totalVariableSpreadsheet / 4.33)}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Energia, água, gás, etc.
+              </p>
+            </div>
+
+            {/* Card 6: Sobra Semanal */}
+            <div className={`p-4 rounded-lg border shadow-sm flex flex-col justify-between ${
               weeklyMetrics.finalResult >= 0 
                 ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-150 dark:border-emerald-900/50' 
                 : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-150 dark:border-rose-900/50'
@@ -649,38 +766,20 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   }`}>
                     <Award className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Sobra Semanal Líquida
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Sobra Líquida / Sem
                   </p>
                 </div>
-                <h4 className={`text-xl sm:text-2xl font-bold tech-font-mono font-mono break-words ${
+                <h4 className={`text-xl font-bold tech-font-mono font-mono break-words ${
                   weeklyMetrics.finalResult >= 0 
                     ? 'text-emerald-600 dark:text-emerald-400' 
                     : 'text-rose-600 dark:text-rose-400'
                 }`}>
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center space-x-2.5 mb-3">
-                  <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
-                    <DollarSign className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Receitas Extras / Sem
-                  </p>
-                </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
-                  {formatCurrency(weeklyMetrics.otherRevenues)}
-                </h4>
-              </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Fração das receitas fora do iFood
-              </p>
-            </div>
                   {formatCurrency(weeklyMetrics.finalResult)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Sobra real de caixa acumulada na semana
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Resultado Final Livre
               </p>
             </div>
 
@@ -790,66 +889,104 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
         <div className="space-y-6 animate-fade-in">
           
           {/* Monthly metrics dashboard */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
             
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-brand-orange rounded-md border border-zinc-100 dark:border-zinc-600">
                     <DollarSign className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                     Faturamento Mensal
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-900 dark:text-white break-words">
                   {formatCurrency(monthlyMetrics.totalRevenue)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Total bruto acumulado no mês
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Total bruto mensal de vendas
               </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-brand-tomato/5 dark:bg-brand-tomato/10 text-brand-tomato rounded-md border border-brand-tomato/10">
                     <TrendingUp className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Lucro de Produtos Mensal
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Lucro de Produtos
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-brand-tomato break-words">
                   {formatCurrency(monthlyMetrics.totalNetProfit)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Soma de todos os wraps e bebidas vendidos
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Soma de todos os produtos
               </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between border-b-2 border-b-emerald-500/30">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Receitas Extras
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
+                  {formatCurrency(monthlyMetrics.totalOther)}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Ganhos extras na planilha
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center space-x-2.5 mb-3">
                   <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
-                    <Briefcase className="w-4 h-4 text-brand-terracota dark:text-brand-orange" />
+                    <Briefcase className="w-4 h-4 text-brand-orange" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Despesas Fixas Mensais
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Fixos
                   </p>
                 </div>
-                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
                   {formatCurrency(monthlyMetrics.totalFixed)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Aluguel, salários, sistemas, energia
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Aluguel, salários, etc.
               </p>
             </div>
 
-            <div className={`p-5 rounded-lg border shadow-sm flex flex-col justify-between ${
+            <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200 rounded-md border border-zinc-100 dark:border-zinc-600">
+                    <Calculator className="w-4 h-4 text-brand-orange" />
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Gastos Variáveis
+                  </p>
+                </div>
+                <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
+                  {formatCurrency(monthlyMetrics.totalVariableSpreadsheet)}
+                </h4>
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Energia, água, gás, etc.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-lg border shadow-sm flex flex-col justify-between ${
               monthlyMetrics.finalResult >= 0 
                 ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-150 dark:border-emerald-900/50' 
                 : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-150 dark:border-rose-900/50'
@@ -863,11 +1000,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   }`}>
                     <Award className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Sobra Líquida Mensal
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Sobra Líquida / Mês
                   </p>
                 </div>
-                <h4 className={`text-xl sm:text-2xl font-bold tech-font-mono font-mono break-words ${
+                <h4 className={`text-xl font-bold tech-font-mono font-mono break-words ${
                   monthlyMetrics.finalResult >= 0 
                     ? 'text-emerald-600 dark:text-emerald-400' 
                     : 'text-rose-600 dark:text-rose-400'
@@ -875,8 +1012,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(monthlyMetrics.finalResult)}
                 </h4>
               </div>
-              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Lucro real acumulado do seu negócio
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Resultado Final Livre
               </p>
             </div>
 
@@ -1080,6 +1217,113 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
 
         </div>
       )}
+
+      {/* ==================== PLANILHA FINANCEIRA COMPLETA (DRE) ==================== */}
+      <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-zinc-150 dark:border-zinc-700/80 pb-4">
+          <div>
+            <h4 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center space-x-2">
+              <Calculator className="w-5 h-5 text-brand-tomato" />
+              <span>Planilha Financeira Detalhada (DRE {reportSubTab === 'dia' ? 'Diário' : reportSubTab === 'semana' ? 'Semanal' : 'Mensal'})</span>
+            </h4>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+              Demonstrativo de Resultado consolidando faturamento, custos de produtos, taxas e despesas da planilha para o período de 1 <strong>{reportSubTab === 'dia' ? 'dia útil' : reportSubTab === 'semana' ? 'semana' : 'mês'}</strong>.
+            </p>
+          </div>
+          <span className="text-xs font-bold font-mono px-3 py-1 bg-brand-tomato/10 text-brand-tomato rounded-md border border-brand-tomato/20">
+            Escala: {reportSubTab === 'dia' ? '1 Dia' : reportSubTab === 'semana' ? '1 Semana' : '1 Mês'}
+          </span>
+        </div>
+
+        {/* The Spreadsheet / DRE Table */}
+        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
+          <table className="w-full text-left border-collapse font-mono text-xs">
+            <thead>
+              <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">
+                <th className="p-3 font-semibold">Estrutura do Demonstrativo (DRE)</th>
+                <th className="p-3 text-right font-semibold w-40">Valor ({reportSubTab === 'dia' ? 'R$/Dia' : reportSubTab === 'semana' ? 'R$/Semana' : 'R$/Mês'})</th>
+                <th className="p-3 text-right font-semibold w-28">Part. %</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              
+              {/* SECTION 1: ENTRADAS */}
+              <tr className="bg-zinc-50/40 dark:bg-zinc-800/20 font-bold">
+                <td className="p-3 text-zinc-900 dark:text-zinc-100">1. ENTRADAS (FATURAMENTO)</td>
+                <td className="p-3 text-right text-zinc-900 dark:text-zinc-100">{formatCurrency(dreData.totalEntradas)}</td>
+                <td className="p-3 text-right text-zinc-500">100.0%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Vendas de Wraps/Produtos (iFood / PDV)</td>
+                <td className="p-3 text-right text-zinc-800 dark:text-zinc-200">{formatCurrency(dreData.productSales)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.productSales / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Outras Receitas e Entradas Extras</td>
+                <td className="p-3 text-right text-zinc-800 dark:text-zinc-200">{formatCurrency(dreData.otherRevenuesVal)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.otherRevenuesVal / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+
+              {/* SECTION 2: GASTOS VARIAVEIS */}
+              <tr className="bg-zinc-50/40 dark:bg-zinc-800/20 font-bold">
+                <td className="p-3 text-zinc-900 dark:text-zinc-100">2. (-) GASTOS VARIÁVEIS</td>
+                <td className="p-3 text-right text-rose-500">{formatCurrency(dreData.totalVariaveis)}</td>
+                <td className="p-3 text-right text-zinc-500">{(dreData.totalEntradas > 0 ? (dreData.totalVariaveis / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Custo de Insumos e Ingredientes (Wraps/Bebidas)</td>
+                <td className="p-3 text-right text-zinc-700 dark:text-zinc-300">{formatCurrency(dreData.ingredientsCost)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.ingredientsCost / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Despesas Tributárias e de Cartões (Comissão)</td>
+                <td className="p-3 text-right text-zinc-700 dark:text-zinc-300">{formatCurrency(dreData.taxesPaid)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.taxesPaid / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Custos Variáveis da Planilha (Embalagens/Outros)</td>
+                <td className="p-3 text-right text-zinc-700 dark:text-zinc-300">{formatCurrency(dreData.variableSpreadsheet)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.variableSpreadsheet / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+
+              {/* MARGEM DE CONTRIBUICAO */}
+              <tr className="bg-zinc-100/40 dark:bg-zinc-900/40 font-extrabold text-sm border-y border-zinc-200 dark:border-zinc-700 text-brand-orange">
+                <td className="p-3">3. (=) MARGEM DE CONTRIBUIÇÃO LÍQUIDA</td>
+                <td className="p-3 text-right">{formatCurrency(dreData.margemContribuicao)}</td>
+                <td className="p-3 text-right">{(dreData.totalEntradas > 0 ? (dreData.margemContribuicao / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+
+              {/* SECTION 3: GASTOS FIXOS */}
+              <tr className="bg-zinc-50/40 dark:bg-zinc-800/20 font-bold">
+                <td className="p-3 text-zinc-900 dark:text-zinc-100">4. (-) GASTOS FIXOS</td>
+                <td className="p-3 text-right text-orange-500">{formatCurrency(dreData.fixedCostsVal)}</td>
+                <td className="p-3 text-right text-zinc-500">{(dreData.totalEntradas > 0 ? (dreData.fixedCostsVal / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+              <tr>
+                <td className="p-3 pl-8 text-zinc-600 dark:text-zinc-400">Despesas Fixas Cadastradas (Aluguel, salários, sistemas)</td>
+                <td className="p-3 text-right text-zinc-700 dark:text-zinc-300">{formatCurrency(dreData.fixedCostsVal)}</td>
+                <td className="p-3 text-right text-zinc-400">{(dreData.totalEntradas > 0 ? (dreData.fixedCostsVal / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+
+              {/* SOBRA LIQUIDA */}
+              <tr className={`font-extrabold text-sm border-t-2 border-zinc-300 dark:border-zinc-600 ${dreData.sobraLiquida >= 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                <td className="p-3">5. (=) RESULTADO LÍQUIDO DO PERÍODO (SOBRA)</td>
+                <td className="p-3 text-right font-mono text-base">{formatCurrency(dreData.sobraLiquida)}</td>
+                <td className="p-3 text-right font-mono text-base">{(dreData.totalEntradas > 0 ? (dreData.sobraLiquida / dreData.totalEntradas) * 100 : 0).toFixed(1)}%</td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        {/* Explanation text */}
+        <div className="flex items-start space-x-2 p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-lg border border-zinc-150 dark:border-zinc-700 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <Info className="w-4 h-4 text-brand-tomato shrink-0 mt-0.5" />
+          <p>
+            Esta planilha é calculada dividindo os custos mensais pelos dias úteis/operacionais ({operationalDays} dias) no caso da visualização Diária, ou por 4.33 no caso da Semanal. Os custos de wraps e tributos variam de acordo com as quantidades cadastradas nas estimativas de vendas de cada produto.
+          </p>
+        </div>
+      </div>
 
     </div>
   );
