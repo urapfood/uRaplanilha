@@ -81,10 +81,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Helper functions for collection synchronizations
 
 /**
- * Sync products in real-time from Firestore
+ * Sync products in real-time from Firestore for a specific user
  */
-export function subscribeToProducts(callback: (products: Product[]) => void) {
-  const colRef = collection(db, 'products');
+export function subscribeToProducts(userId: string, callback: (products: Product[]) => void) {
+  const colRef = collection(db, 'users', userId, 'products');
   return onSnapshot(colRef, (snapshot) => {
     const products: Product[] = [];
     snapshot.forEach((doc) => {
@@ -92,39 +92,39 @@ export function subscribeToProducts(callback: (products: Product[]) => void) {
     });
     callback(products);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, 'products');
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/products`);
   });
 }
 
 /**
- * Save or update a product in Firestore
+ * Save or update a product in Firestore for a specific user
  */
-export async function saveProduct(product: Product) {
+export async function saveProduct(userId: string, product: Product) {
   try {
-    const docRef = doc(db, 'products', product.id);
+    const docRef = doc(db, 'users', userId, 'products', product.id);
     await setDoc(docRef, product);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/products/${product.id}`);
   }
 }
 
 /**
- * Delete a product from Firestore
+ * Delete a product from Firestore for a specific user
  */
-export async function deleteProduct(productId: string) {
+export async function deleteProduct(userId: string, productId: string) {
   try {
-    const docRef = doc(db, 'products', productId);
+    const docRef = doc(db, 'users', userId, 'products', productId);
     await deleteDoc(docRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `products/${productId}`);
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/products/${productId}`);
   }
 }
 
 /**
- * Sync taxes in real-time from Firestore
+ * Sync taxes in real-time from Firestore for a specific user
  */
-export function subscribeToTaxes(callback: (taxes: Tax[]) => void) {
-  const colRef = collection(db, 'taxes');
+export function subscribeToTaxes(userId: string, callback: (taxes: Tax[]) => void) {
+  const colRef = collection(db, 'users', userId, 'taxes');
   return onSnapshot(colRef, (snapshot) => {
     const taxes: Tax[] = [];
     snapshot.forEach((doc) => {
@@ -132,39 +132,39 @@ export function subscribeToTaxes(callback: (taxes: Tax[]) => void) {
     });
     callback(taxes);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, 'taxes');
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/taxes`);
   });
 }
 
 /**
- * Save or update a tax in Firestore
+ * Save or update a tax in Firestore for a specific user
  */
-export async function saveTax(tax: Tax) {
+export async function saveTax(userId: string, tax: Tax) {
   try {
-    const docRef = doc(db, 'taxes', tax.id);
+    const docRef = doc(db, 'users', userId, 'taxes', tax.id);
     await setDoc(docRef, tax);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `taxes/${tax.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/taxes/${tax.id}`);
   }
 }
 
 /**
- * Delete a tax from Firestore
+ * Delete a tax from Firestore for a specific user
  */
-export async function deleteTax(taxId: string) {
+export async function deleteTax(userId: string, taxId: string) {
   try {
-    const docRef = doc(db, 'taxes', taxId);
+    const docRef = doc(db, 'users', userId, 'taxes', taxId);
     await deleteDoc(docRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `taxes/${taxId}`);
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/taxes/${taxId}`);
   }
 }
 
 /**
- * Sync fixed costs in real-time from Firestore
+ * Sync fixed costs in real-time from Firestore for a specific user
  */
-export function subscribeToFixedCosts(callback: (fixedCosts: FixedCost[]) => void) {
-  const colRef = collection(db, 'fixedCosts');
+export function subscribeToFixedCosts(userId: string, callback: (fixedCosts: FixedCost[]) => void) {
+  const colRef = collection(db, 'users', userId, 'fixedCosts');
   return onSnapshot(colRef, (snapshot) => {
     const fixedCosts: FixedCost[] = [];
     snapshot.forEach((doc) => {
@@ -172,39 +172,39 @@ export function subscribeToFixedCosts(callback: (fixedCosts: FixedCost[]) => voi
     });
     callback(fixedCosts);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, 'fixedCosts');
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/fixedCosts`);
   });
 }
 
 /**
- * Save or update a fixed cost in Firestore
+ * Save or update a fixed cost in Firestore for a specific user
  */
-export async function saveFixedCost(fixedCost: FixedCost) {
+export async function saveFixedCost(userId: string, fixedCost: FixedCost) {
   try {
-    const docRef = doc(db, 'fixedCosts', fixedCost.id);
+    const docRef = doc(db, 'users', userId, 'fixedCosts', fixedCost.id);
     await setDoc(docRef, fixedCost);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `fixedCosts/${fixedCost.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/fixedCosts/${fixedCost.id}`);
   }
 }
 
 /**
- * Delete a fixed cost from Firestore
+ * Delete a fixed cost from Firestore for a specific user
  */
-export async function deleteFixedCost(fixedCostId: string) {
+export async function deleteFixedCost(userId: string, fixedCostId: string) {
   try {
-    const docRef = doc(db, 'fixedCosts', fixedCostId);
+    const docRef = doc(db, 'users', userId, 'fixedCosts', fixedCostId);
     await deleteDoc(docRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `fixedCosts/${fixedCostId}`);
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/fixedCosts/${fixedCostId}`);
   }
 }
 
 /**
- * Sync recipes in real-time from Firestore
+ * Sync recipes in real-time from Firestore for a specific user
  */
-export function subscribeToRecipes(callback: (recipes: Recipe[]) => void) {
-  const colRef = collection(db, 'recipes');
+export function subscribeToRecipes(userId: string, callback: (recipes: Recipe[]) => void) {
+  const colRef = collection(db, 'users', userId, 'recipes');
   return onSnapshot(colRef, (snapshot) => {
     const recipes: Recipe[] = [];
     snapshot.forEach((doc) => {
@@ -212,39 +212,39 @@ export function subscribeToRecipes(callback: (recipes: Recipe[]) => void) {
     });
     callback(recipes);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, 'recipes');
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/recipes`);
   });
 }
 
 /**
- * Save or update a recipe in Firestore
+ * Save or update a recipe in Firestore for a specific user
  */
-export async function saveRecipe(recipe: Recipe) {
+export async function saveRecipe(userId: string, recipe: Recipe) {
   try {
-    const docRef = doc(db, 'recipes', recipe.id);
+    const docRef = doc(db, 'users', userId, 'recipes', recipe.id);
     await setDoc(docRef, recipe);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `recipes/${recipe.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/recipes/${recipe.id}`);
   }
 }
 
 /**
- * Delete a recipe from Firestore
+ * Delete a recipe from Firestore for a specific user
  */
-export async function deleteRecipe(recipeId: string) {
+export async function deleteRecipe(userId: string, recipeId: string) {
   try {
-    const docRef = doc(db, 'recipes', recipeId);
+    const docRef = doc(db, 'users', userId, 'recipes', recipeId);
     await deleteDoc(docRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `recipes/${recipeId}`);
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/recipes/${recipeId}`);
   }
 }
 
 /**
- * Sync sales in real-time from Firestore
+ * Sync sales in real-time from Firestore for a specific user
  */
-export function subscribeToSales(callback: (sales: Sale[]) => void) {
-  const colRef = collection(db, 'sales');
+export function subscribeToSales(userId: string, callback: (sales: Sale[]) => void) {
+  const colRef = collection(db, 'users', userId, 'sales');
   return onSnapshot(colRef, (snapshot) => {
     const sales: Sale[] = [];
     snapshot.forEach((doc) => {
@@ -254,31 +254,31 @@ export function subscribeToSales(callback: (sales: Sale[]) => void) {
     sales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(sales);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, 'sales');
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/sales`);
   });
 }
 
 /**
- * Save a sale in Firestore
+ * Save a sale in Firestore for a specific user
  */
-export async function saveSale(sale: Sale) {
+export async function saveSale(userId: string, sale: Sale) {
   try {
-    const docRef = doc(db, 'sales', sale.id);
+    const docRef = doc(db, 'users', userId, 'sales', sale.id);
     await setDoc(docRef, sale);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `sales/${sale.id}`);
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/sales/${sale.id}`);
   }
 }
 
 /**
- * Delete a sale from Firestore
+ * Delete a sale from Firestore for a specific user
  */
-export async function deleteSale(saleId: string) {
+export async function deleteSale(userId: string, saleId: string) {
   try {
-    const docRef = doc(db, 'sales', saleId);
+    const docRef = doc(db, 'users', userId, 'sales', saleId);
     await deleteDoc(docRef);
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `sales/${saleId}`);
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/sales/${saleId}`);
   }
 }
 

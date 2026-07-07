@@ -41,8 +41,11 @@ import {
   subscribeToTaxes, saveTax, deleteTax,
   subscribeToFixedCosts, saveFixedCost, deleteFixedCost,
   subscribeToRecipes, saveRecipe, deleteRecipe,
-  subscribeToSales, saveSale, deleteSale
+  subscribeToSales, saveSale, deleteSale,
+  auth
 } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import AuthScreen from './components/AuthScreen';
 
 export default function App() {
   // Local storage keys
@@ -58,6 +61,10 @@ export default function App() {
       return false;
     }
   });
+
+  // State: Authentication
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   // State: Data arrays from Firestore
   const [products, setProductsState] = useState<Product[]>([]);
@@ -77,8 +84,28 @@ export default function App() {
   // State: Toast / Alert messages
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Sync state with Firestore in real-time on mount
+  // Sync authentication state
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync state with Firestore in real-time when authenticated
+  useEffect(() => {
+    if (!currentUser) {
+      setProductsState([]);
+      setTaxesState([]);
+      setFixedCostsState([]);
+      setRecipesState([]);
+      setSalesState([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     let loadedCount = 0;
     const checkLoading = () => {
       loadedCount++;
@@ -87,23 +114,25 @@ export default function App() {
       }
     };
 
-    const unsubProducts = subscribeToProducts((data) => {
+    const userId = currentUser.uid;
+
+    const unsubProducts = subscribeToProducts(userId, (data) => {
       setProductsState(data);
       checkLoading();
     });
-    const unsubTaxes = subscribeToTaxes((data) => {
+    const unsubTaxes = subscribeToTaxes(userId, (data) => {
       setTaxesState(data);
       checkLoading();
     });
-    const unsubFixed = subscribeToFixedCosts((data) => {
+    const unsubFixed = subscribeToFixedCosts(userId, (data) => {
       setFixedCostsState(data);
       checkLoading();
     });
-    const unsubRecipes = subscribeToRecipes((data) => {
+    const unsubRecipes = subscribeToRecipes(userId, (data) => {
       setRecipesState(data);
       checkLoading();
     });
-    const unsubSales = subscribeToSales((data) => {
+    const unsubSales = subscribeToSales(userId, (data) => {
       setSalesState(data);
       checkLoading();
     });
@@ -121,15 +150,18 @@ export default function App() {
       unsubSales();
       clearTimeout(timer);
     };
-  }, []);
+  }, [currentUser]);
 
   // Generic helper to diff and sync changes to Firestore
   const syncCollection = async <T extends { id: string }>(
     value: React.SetStateAction<T[]>,
     currentList: T[],
-    saveFn: (item: T) => Promise<void>,
-    deleteFn: (id: string) => Promise<void>
+    saveFn: (userId: string, item: T) => Promise<void>,
+    deleteFn: (userId: string, id: string) => Promise<void>
   ) => {
+    if (!currentUser) return;
+    const userId = currentUser.uid;
+
     let nextList: T[];
     if (typeof value === 'function') {
       nextList = (value as Function)(currentList);
@@ -143,7 +175,7 @@ export default function App() {
     for (const item of currentList) {
       if (!nextIds.has(item.id)) {
         try {
-          await deleteFn(item.id);
+          await deleteFn(userId, item.id);
         } catch (err) {
           console.error("Error syncing deletion to Firestore:", err);
         }
@@ -153,7 +185,7 @@ export default function App() {
     // 2. Save items that are in next list
     for (const item of nextList) {
       try {
-        await saveFn(item);
+        await saveFn(userId, item);
       } catch (err) {
         console.error("Error syncing save to Firestore:", err);
       }
@@ -311,6 +343,19 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <Loader2 className="w-10 h-10 text-brand-tomato animate-spin mb-4" />
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Autenticando...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthScreen onSuccess={(user) => setCurrentUser(user)} />;
+  }
+
   return (
     <div className="min-h-screen bg-bg-main dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       
@@ -324,6 +369,8 @@ export default function App() {
         onExportCSV={handleExportCSV}
         onImportJSON={handleImportJSON}
         onExportPDF={() => setIsPDFModalOpen(true)}
+        currentUser={currentUser}
+        onLogout={() => signOut(auth)}
       />
 
       {/* 2. Success/Error Toast notification */}

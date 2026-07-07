@@ -6,20 +6,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /products/{document} {
-      allow read, write: if true;
+    match /users/{userId}/products/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    match /taxes/{document} {
-      allow read, write: if true;
+    match /users/{userId}/taxes/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    match /fixedCosts/{document} {
-      allow read, write: if true;
+    match /users/{userId}/fixedCosts/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    match /recipes/{document} {
-      allow read, write: if true;
+    match /users/{userId}/recipes/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    match /sales/{document} {
-      allow read, write: if true;
+    match /users/{userId}/sales/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow reading and writing the user profile document itself
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

@@ -8,9 +8,11 @@ import {
   TrendingUp, 
   Percent, 
   ShoppingBag,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { formatPercent } from '../utils';
+import logoImg from '../assets/logo.png';
 
 interface HeaderProps {
   activeTaxRate: number;
@@ -21,6 +23,8 @@ interface HeaderProps {
   onExportCSV: () => void;
   onImportJSON: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onExportPDF: () => void;
+  currentUser: any;
+  onLogout: () => void;
 }
 
 export default function Header({
@@ -32,6 +36,8 @@ export default function Header({
   onExportCSV,
   onImportJSON,
   onExportPDF,
+  currentUser,
+  onLogout,
 }: HeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,8 +52,13 @@ export default function Header({
           
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-brand-tomato/10 text-brand-tomato rounded-xl flex items-center justify-center border border-brand-tomato/20">
-              <FileSpreadsheet className="w-6 h-6" id="header-logo-icon" />
+            <div className="flex items-center justify-center">
+              <img 
+                src={logoImg} 
+                alt="Logo uRapFood" 
+                className="w-11 h-11 object-contain rounded-xl border border-zinc-100 dark:border-zinc-800 bg-white shadow-xs p-0.5" 
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <div className="flex items-center space-x-2">
@@ -130,7 +141,8 @@ export default function Header({
                 accept=".json"
                 className="hidden"
                 id="import-file-input"
-              />
+              >
+              </input>
             </div>
 
             {/* Dark Mode Toggle */}
@@ -142,6 +154,26 @@ export default function Header({
             >
               {darkMode ? <Sun className="w-5 h-5 text-brand-orange" /> : <Moon className="w-5 h-5 text-zinc-600" />}
             </button>
+
+            {/* User Profile and LogOut */}
+            {currentUser && (
+              <div className="flex items-center space-x-2 pl-2 border-l border-zinc-200 dark:border-zinc-800">
+                <div className="hidden lg:flex flex-col text-right">
+                  <span className="text-xs font-bold text-zinc-950 dark:text-zinc-100 max-w-[120px] truncate">
+                    {currentUser.displayName || currentUser.email?.split('@')[0]}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-medium">Conta Ativa</span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all cursor-pointer"
+                  title="Sair da Conta"
+                  id="btn-logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

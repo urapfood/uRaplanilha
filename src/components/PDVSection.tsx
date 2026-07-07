@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Product, Tax, Sale, SaleItem } from '../types';
 import { getProductCost, calculateProductMetrics, formatCurrency } from '../utils';
-import { saveSale, deleteSale } from '../firebase';
+import { saveSale, deleteSale, auth } from '../firebase';
 
 interface PDVSectionProps {
   products: Product[];
@@ -166,8 +166,15 @@ export default function PDVSection({ products, taxes, sales }: PDVSectionProps) 
       netProfit: cartNetProfit
     };
 
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      triggerFeedback('Erro: Usuário não autenticado.', 'error');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await saveSale(newSale);
+      await saveSale(userId, newSale);
       setCart([]);
       setDiscount('');
       setPaymentMethod('pix');
@@ -182,9 +189,15 @@ export default function PDVSection({ products, taxes, sales }: PDVSectionProps) 
 
   // Delete previous sale
   const handleDeleteSale = async (id: string) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      triggerFeedback('Erro: Usuário não autenticado.', 'error');
+      return;
+    }
+
     if (window.confirm('Tem certeza que deseja estornar/excluir esta venda?')) {
       try {
-        await deleteSale(id);
+        await deleteSale(userId, id);
         triggerFeedback('Venda estornada com sucesso!', 'success');
       } catch (err) {
         console.error(err);
