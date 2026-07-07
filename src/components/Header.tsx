@@ -144,15 +144,7 @@ export default function Header({
               </input>
             </div>
 
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-              title={darkMode ? 'Modo Claro' : 'Modo Escuro'}
-              id="btn-toggle-theme"
-            >
-              {darkMode ? <Sun className="w-5 h-5 text-brand-orange" /> : <Moon className="w-5 h-5 text-zinc-600" />}
-            </button>
+
 
             {/* User Profile and LogOut */}
             {currentUser && (

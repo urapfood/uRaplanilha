@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore, 
   collection, 
   doc, 
   setDoc, 
@@ -25,8 +25,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with custom databaseId from configuration
-export const db = getFirestore(app, "ai-studio-uraplanilha-741ff4b7-b1bc-4061-b7a0-10c40904ee5f");
+// Initialize Firestore with custom databaseId and ignoreUndefinedProperties set to true
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+}, "ai-studio-uraplanilha-741ff4b7-b1bc-4061-b7a0-10c40904ee5f");
 
 // Initialize Auth
 export const auth = getAuth(app);

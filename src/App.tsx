@@ -52,15 +52,7 @@ export default function App() {
   const STORAGE_KEY_THEME = 'uraplanilha_theme';
 
   // State: Dark Mode
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_THEME);
-      if (saved) return saved === 'true';
-      return false; // Default: Light Theme (clean background)
-    } catch {
-      return false;
-    }
-  });
+  const [darkMode, setDarkMode] = useState<boolean>(true);
 
   // State: Authentication
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -182,12 +174,15 @@ export default function App() {
       }
     }
 
-    // 2. Save items that are in next list
+    // 2. Save items that are new or modified compared to currentList
     for (const item of nextList) {
-      try {
-        await saveFn(userId, item);
-      } catch (err) {
-        console.error("Error syncing save to Firestore:", err);
+      const existing = currentList.find(c => c.id === item.id);
+      if (!existing || JSON.stringify(existing) !== JSON.stringify(item)) {
+        try {
+          await saveFn(userId, item);
+        } catch (err) {
+          console.error("Error syncing save to Firestore:", err);
+        }
       }
     }
   };
