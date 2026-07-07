@@ -47,6 +47,7 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
   const [formSellingPrice, setFormSellingPrice] = useState<number | ''>('');
   const [formCostType, setFormCostType] = useState<'single' | 'detailed'>('single');
   const [formSingleCost, setFormSingleCost] = useState<number | ''>('');
+  const [formPackagingCost, setFormPackagingCost] = useState<number | ''>('');
   const [formIngredients, setFormIngredients] = useState<Ingredient[]>([]);
   const [formEstimatedSales, setFormEstimatedSales] = useState<number | ''>('');
   const [formNotes, setFormNotes] = useState('');
@@ -86,6 +87,7 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
     setFormSellingPrice('');
     setFormCostType('single');
     setFormSingleCost('');
+    setFormPackagingCost('');
     setFormIngredients([]);
     setFormEstimatedSales('');
     setFormNotes('');
@@ -103,6 +105,7 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
     setFormSellingPrice(product.sellingPrice);
     setFormCostType(product.costType);
     setFormSingleCost(product.singleCost);
+    setFormPackagingCost(product.packagingCost || '');
     setFormIngredients(product.ingredients || []);
     setFormEstimatedSales(product.estimatedSales || '');
     setFormNotes(product.notes || '');
@@ -192,6 +195,7 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
       sellingPrice: Number(formSellingPrice),
       costType: formCostType,
       singleCost: formCostType === 'single' ? Number(formSingleCost) : 0,
+      packagingCost: formPackagingCost === '' ? undefined : Number(formPackagingCost),
       ingredients: formCostType === 'detailed' ? formIngredients : [],
       estimatedSales: formEstimatedSales === '' ? 0 : Number(formEstimatedSales),
       notes: formNotes.trim() || undefined,
@@ -650,6 +654,26 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
                       )}
                     </div>
                   )}
+                  
+                  {/* Packaging Cost */}
+                  <div className="space-y-2 pt-2 border-t border-zinc-200/50 dark:border-zinc-750">
+                    <label htmlFor="prod-packaging-cost" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                      Custo com Embalagem (R$)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold pointer-events-none">R$</span>
+                      <input
+                        type="number"
+                        id="prod-packaging-cost"
+                        step="0.01"
+                        min="0"
+                        placeholder="Ex: 1.50"
+                        value={formPackagingCost}
+                        onChange={(e) => setFormPackagingCost(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                      />
+                    </div>
+                  </div>
                 </div>
 
               </div>

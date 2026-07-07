@@ -4,6 +4,14 @@ export interface Ingredient {
   cost: number;
 }
 
+export interface SupplierItem {
+  id: string;
+  name: string;
+  unit: string;
+  price: number;
+  supplierName?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -11,6 +19,7 @@ export interface Product {
   sellingPrice: number;
   costType: 'single' | 'detailed';
   singleCost: number;
+  packagingCost?: number; // New field for packaging cost
   ingredients: Ingredient[];
   estimatedSales: number;
   notes?: string;

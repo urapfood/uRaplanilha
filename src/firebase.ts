@@ -10,7 +10,7 @@ import {
   getDocs,
   writeBatch
 } from 'firebase/firestore';
-import { Product, Tax, FixedCost, Recipe, Sale } from './types';
+import { Product, Tax, FixedCost, Recipe, Sale, SupplierItem } from './types';
 
 // Config retrieved from firebase-applet-config.json
 const firebaseConfig = {
@@ -281,6 +281,46 @@ export async function deleteSale(userId: string, saleId: string) {
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `users/${userId}/sales/${saleId}`);
+  }
+}
+
+/**
+ * Sync suppliers in real-time from Firestore for a specific user
+ */
+export function subscribeToSuppliers(userId: string, callback: (suppliers: SupplierItem[]) => void) {
+  const colRef = collection(db, 'users', userId, 'suppliers');
+  return onSnapshot(colRef, (snapshot) => {
+    const suppliers: SupplierItem[] = [];
+    snapshot.forEach((doc) => {
+      suppliers.push({ id: doc.id, ...doc.data() } as SupplierItem);
+    });
+    callback(suppliers);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/suppliers`);
+  });
+}
+
+/**
+ * Save or update a supplier item in Firestore for a specific user
+ */
+export async function saveSupplier(userId: string, supplier: SupplierItem) {
+  try {
+    const docRef = doc(db, 'users', userId, 'suppliers', supplier.id);
+    await setDoc(docRef, supplier);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/suppliers/${supplier.id}`);
+  }
+}
+
+/**
+ * Delete a supplier item from Firestore for a specific user
+ */
+export async function deleteSupplier(userId: string, supplierId: string) {
+  try {
+    const docRef = doc(db, 'users', userId, 'suppliers', supplierId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/suppliers/${supplierId}`);
   }
 }
 

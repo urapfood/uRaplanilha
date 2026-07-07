@@ -18,10 +18,18 @@ export function formatPercent(value: number): string {
 
 // Financial calculations
 export function getProductCost(product: Product): number {
+  let cost = 0;
   if (product.costType === 'single') {
-    return product.singleCost;
+    cost = product.singleCost;
+  } else {
+    cost = product.ingredients.reduce((sum, item) => sum + item.cost, 0);
   }
-  return product.ingredients.reduce((sum, item) => sum + item.cost, 0);
+  
+  if (product.packagingCost) {
+    cost += product.packagingCost;
+  }
+  
+  return cost;
 }
 
 export function getActiveTaxPercentage(taxes: Tax[]): number {

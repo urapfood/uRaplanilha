@@ -24,12 +24,14 @@ import RecipesTab from './components/RecipesTab';
 import IFoodImportTab from './components/IFoodImportTab';
 import PDFExportModal from './components/PDFExportModal';
 import PDVSection from './components/PDVSection';
+import SupplierTab from './components/SupplierTab';
 import { 
   Product, 
   Tax, 
   FixedCost, 
   Recipe,
   Sale,
+  SupplierItem,
   INITIAL_TAXES, 
   INITIAL_PRODUCTS, 
   INITIAL_FIXED_COSTS,
@@ -42,6 +44,7 @@ import {
   subscribeToFixedCosts, saveFixedCost, deleteFixedCost,
   subscribeToRecipes, saveRecipe, deleteRecipe,
   subscribeToSales, saveSale, deleteSale,
+  subscribeToSuppliers, saveSupplier, deleteSupplier,
   auth
 } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -64,10 +67,11 @@ export default function App() {
   const [fixedCosts, setFixedCostsState] = useState<FixedCost[]>([]);
   const [recipes, setRecipesState] = useState<Recipe[]>([]);
   const [sales, setSalesState] = useState<Sale[]>([]);
+  const [suppliers, setSuppliersState] = useState<SupplierItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // State: Navigation Active Tab
-  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv';
+  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores';
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
   // State: PDF Export Modal
@@ -101,7 +105,7 @@ export default function App() {
     let loadedCount = 0;
     const checkLoading = () => {
       loadedCount++;
-      if (loadedCount >= 5) {
+      if (loadedCount >= 6) {
         setLoading(false);
       }
     };
@@ -128,6 +132,10 @@ export default function App() {
       setSalesState(data);
       checkLoading();
     });
+    const unsubSuppliers = subscribeToSuppliers(userId, (data) => {
+      setSuppliersState(data);
+      checkLoading();
+    });
 
     // Fallback: stop loading after 3 seconds anyway to avoid infinite spinner if Firestore is empty
     const timer = setTimeout(() => {
@@ -140,6 +148,7 @@ export default function App() {
       unsubFixed();
       unsubRecipes();
       unsubSales();
+      unsubSuppliers();
       clearTimeout(timer);
     };
   }, [currentUser]);
@@ -201,6 +210,10 @@ export default function App() {
 
   const setRecipes = (value: React.SetStateAction<Recipe[]>) => {
     syncCollection(value, recipes, saveRecipe, deleteRecipe);
+  };
+
+  const setSuppliers = (value: React.SetStateAction<SupplierItem[]>) => {
+    syncCollection(value, suppliers, saveSupplier, deleteSupplier);
   };
 
   // Dark Mode Sync
@@ -519,6 +532,20 @@ export default function App() {
             <span>Importar iFood</span>
           </button>
 
+          {/* Fornecedores Tab */}
+          <button
+            onClick={() => setActiveTab('fornecedores')}
+            className={`flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap lg:w-full ${
+              activeTab === 'fornecedores'
+                ? 'bg-brand-tomato text-white border border-white/10 shadow-sm'
+                : 'text-orange-100/90 dark:text-zinc-400 hover:text-white dark:hover:text-white hover:bg-white/10 dark:hover:bg-zinc-800'
+            }`}
+            id="tab-btn-fornecedores"
+          >
+            <Briefcase className="w-4 h-4" />
+            <span>Fornecedores</span>
+          </button>
+
         </nav>
 
         {/* Dynamic content rendering with responsive animations */}
@@ -579,6 +606,12 @@ export default function App() {
                   products={products}
                   setProducts={setProducts}
                   showToast={showToast}
+                />
+              )}
+              {activeTab === 'fornecedores' && (
+                <SupplierTab 
+                  suppliers={suppliers}
+                  setSuppliers={setSuppliers}
                 />
               )}
             </>

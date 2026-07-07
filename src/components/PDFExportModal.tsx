@@ -516,7 +516,8 @@ export default function PDFExportModal({
         {/* Modal body */}
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         
-        <div className="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-zinc-200/80 dark:border-zinc-800">
+        <div className="relative z-10 inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-zinc-200/80 dark:border-zinc-800">
+
           
           {/* Modal Header */}
           <div className="p-6 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
