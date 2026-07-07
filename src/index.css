@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Georgia", Georgia, serif;
+  --font-mono: "Courier New", Courier, monospace;
+  
+  --color-brand-tomato: #E24B4A;
+  --color-brand-orange: #F2A93B;
+  --color-brand-terracota: #7A2E1D;
+  --color-bg-main: #F8F9FA;
+}
+
+/* Base style resets */
+body {
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbar hiding */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Entry animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Tech Data Grid Theme helpers */
+.tech-font-serif-italic {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+.tech-font-mono {
+  font-family: var(--font-mono);
+}
+
+.tech-card-header {
+  background-color: #F1F1F1;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.dark .tech-card-header {
+  background-color: #27272a;
+  border-bottom: 1px solid #3f3f46;
+}

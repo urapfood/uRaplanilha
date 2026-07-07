@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Product details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sellingPrice": { "type": "number" }
+      }
+    },
+    "Tax": {
+      "title": "Tax",
+      "description": "Tax detail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "percentage": { "type": "number" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "FixedCost": {
+      "title": "FixedCost",
+      "description": "Fixed monthly cost details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "monthlyValue": { "type": "number" }
+      }
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Recipe with ingredients",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Recorded POS/PDV sale transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "taxesAmount": { "type": "number" },
+        "netProfit": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Store products"
+    },
+    "taxes": {
+      "schema": "Tax",
+      "description": "Store taxes config"
+    },
+    "fixedCosts": {
+      "schema": "FixedCost",
+      "description": "Store monthly fixed costs"
+    },
+    "recipes": {
+      "schema": "Recipe",
+      "description": "Store product recipes"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Store off-iFood sales from PDV"
+    }
+  }
+}
