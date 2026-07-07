@@ -18,7 +18,6 @@ import {
   Phone,
   User
 } from 'lucide-react';
-import logoImg from '../assets/logo.png';
 
 interface AuthScreenProps {
   onSuccess: (user: any) => void;
@@ -144,7 +143,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-3">
             <img 
-              src={logoImg} 
+              src="https://i.imgur.com/s6faISQ.png" 
               alt="Logo uRapFood" 
               className="w-16 h-16 object-contain rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white shadow-sm p-1"
               referrerPolicy="no-referrer"

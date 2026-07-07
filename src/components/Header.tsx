@@ -12,7 +12,6 @@ import {
   LogOut
 } from 'lucide-react';
 import { formatPercent } from '../utils';
-import logoImg from '../assets/logo.png';
 
 interface HeaderProps {
   activeTaxRate: number;
@@ -54,7 +53,7 @@ export default function Header({
           <div className="flex items-center space-x-3">
             <div className="flex items-center justify-center">
               <img 
-                src={logoImg} 
+                src="https://i.imgur.com/s6faISQ.png" 
                 alt="Logo uRapFood" 
                 className="w-11 h-11 object-contain rounded-xl border border-zinc-100 dark:border-zinc-800 bg-white shadow-xs p-0.5" 
                 referrerPolicy="no-referrer"
