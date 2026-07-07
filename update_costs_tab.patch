@@ -1,0 +1,259 @@
+--- src/components/FixedCostTab.tsx
++++ src/components/FixedCostTab.tsx
+@@ -7,18 +7,25 @@
+   DollarSign, 
+   Info 
+ } from 'lucide-react';
+-import { FixedCost } from '../types';
++import { FixedCost, VariableCost } from '../types';
+ import { formatCurrency } from '../utils';
+ 
+ interface FixedCostTabProps {
+   fixedCosts: FixedCost[];
+   setFixedCosts: (costs: FixedCost[]) => void;
++  variableCosts: VariableCost[];
++  setVariableCosts: (costs: VariableCost[]) => void;
+ }
+ 
+-export default function FixedCostTab({ fixedCosts, setFixedCosts }: FixedCostTabProps) {
++export default function FixedCostTab({ fixedCosts, setFixedCosts, variableCosts, setVariableCosts }: FixedCostTabProps) {
+   const [newName, setNewName] = useState('');
+   const [newValue, setNewValue] = useState<number | ''>('');
++  const [costType, setCostType] = useState<'fixed' | 'variable'>('fixed');
+   const [error, setError] = useState('');
+ 
+   const totalFixedCosts = useMemo(() => {
+     return fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+   }, [fixedCosts]);
+ 
++  const totalVariableCosts = useMemo(() => {
++    return variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
++  }, [variableCosts]);
++
+   const handleAddCost = (e: React.FormEvent) => {
+     e.preventDefault();
+     setError('');
+@@ -43,26 +50,47 @@
+       return;
+     }
+ 
+-    const newCost: FixedCost = {
+-      id: Date.now().toString(),
+-      name: newName.trim(),
+-      monthlyValue: Number(newValue),
+-    };
+-
+-    setFixedCosts([...fixedCosts, newCost]);
++    if (costType === 'fixed') {
++      const newCost: FixedCost = {
++        id: Date.now().toString(),
++        name: newName.trim(),
++        monthlyValue: Number(newValue),
++      };
++      setFixedCosts([...fixedCosts, newCost]);
++    } else {
++      const newCost: VariableCost = {
++        id: Date.now().toString(),
++        name: newName.trim(),
++        monthlyValue: Number(newValue),
++      };
++      setVariableCosts([...variableCosts, newCost]);
++    }
++
+     setNewName('');
+     setNewValue('');
+   };
+ 
+-  const handleUpdateValue = (id: string, value: number) => {
++  const handleUpdateValue = (id: string, value: number, isVariable: boolean) => {
+     const validatedValue = Math.max(0, isNaN(value) ? 0 : value);
+-    setFixedCosts(
+-      fixedCosts.map((cost) => (cost.id === id ? { ...cost, monthlyValue: validatedValue } : cost))
+-    );
++    if (isVariable) {
++      setVariableCosts(
++        variableCosts.map((cost) => (cost.id === id ? { ...cost, monthlyValue: validatedValue } : cost))
++      );
++    } else {
++      setFixedCosts(
++        fixedCosts.map((cost) => (cost.id === id ? { ...cost, monthlyValue: validatedValue } : cost))
++      );
++    }
+   };
+ 
+-  const handleUpdateName = (id: string, name: string) => {
+-    setFixedCosts(
+-      fixedCosts.map((cost) => (cost.id === id ? { ...cost, name } : cost))
+-    );
++  const handleUpdateName = (id: string, name: string, isVariable: boolean) => {
++    if (isVariable) {
++      setVariableCosts(
++        variableCosts.map((cost) => (cost.id === id ? { ...cost, name } : cost))
++      );
++    } else {
++      setFixedCosts(
++        fixedCosts.map((cost) => (cost.id === id ? { ...cost, name } : cost))
++      );
++    }
+   };
+ 
+-  const handleDeleteCost = (id: string) => {
+-    setFixedCosts(fixedCosts.filter((cost) => cost.id !== id));
++  const handleDeleteCost = (id: string, isVariable: boolean) => {
++    if (isVariable) {
++      setVariableCosts(variableCosts.filter((cost) => cost.id !== id));
++    } else {
++      setFixedCosts(fixedCosts.filter((cost) => cost.id !== id));
++    }
+   };
+ 
+   return (
+@@ -82,9 +110,9 @@
+         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
+           <div>
+             <span className="text-[11px] font-bold uppercase tracking-widest bg-brand-orange/10 text-brand-orange px-3 py-1 rounded-full">
+-              Soma de Custos Fixos Mensais
++              Soma de Custos Fixos e Variáveis
+             </span>
+             <h3 className="text-3xl sm:text-4xl font-extrabold tech-font-mono font-mono text-zinc-900 dark:text-white mt-3 tracking-tight">
+-              {formatCurrency(totalFixedCosts)}
++              {formatCurrency(totalFixedCosts + totalVariableCosts)}
+             </h3>
+             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-md">
+               Despesas necessárias para manter o delivery aberto, independentemente do volume de vendas.
+@@ -103,13 +131,37 @@
+         <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm h-fit">
+           <h4 className="text-base font-bold tech-font-serif-italic font-serif italic text-zinc-900 dark:text-white mb-4 flex items-center space-x-2">
+             <Plus className="w-5 h-5 text-brand-tomato" />
+-            <span>Adicionar Custo Fixo</span>
++            <span>Adicionar Custo</span>
+           </h4>
+ 
+           <form onSubmit={handleAddCost} className="space-y-4">
++            <div>
++              <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
++                Tipo de Custo
++              </label>
++              <div className="grid grid-cols-2 gap-2">
++                <button
++                  type="button"
++                  onClick={() => setCostType('fixed')}
++                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${costType === 'fixed' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white' : 'bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
++                >
++                  Fixo
++                </button>
++                <button
++                  type="button"
++                  onClick={() => setCostType('variable')}
++                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${costType === 'variable' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white' : 'bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
++                >
++                  Variável
++                </button>
++              </div>
++            </div>
+             <div>
+               <label htmlFor="cost-name" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                 Descrição do Custo
+@@ -165,11 +217,11 @@
+           <div className="flex justify-between items-center mb-4">
+             <h4 className="text-base font-bold tech-font-serif-italic font-serif italic text-zinc-900 dark:text-white flex items-center space-x-2">
+               <DollarSign className="w-5 h-5 text-brand-orange" />
+-              <span>Detalhamento das Despesas</span>
++              <span>Detalhamento dos Custos Fixos</span>
+             </h4>
+             <span className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold tech-font-mono font-mono bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-200/50 dark:border-zinc-800">
+               {fixedCosts.length} Itens
+             </span>
+           </div>
+ 
+           <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 bg-zinc-50 dark:bg-zinc-900 p-3 rounded-lg border border-zinc-150 dark:border-zinc-800/80 flex items-start space-x-2">
+@@ -196,7 +248,7 @@
+                     <input
+                       type="text"
+                       value={cost.name}
+-                      onChange={(e) => handleUpdateName(cost.id, e.target.value)}
++                      onChange={(e) => handleUpdateName(cost.id, e.target.value, false)}
+                       className="bg-transparent text-sm font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none focus:bg-white dark:focus:bg-zinc-900 border-b border-transparent focus:border-zinc-300 w-full px-1 py-0.5"
+                     />
+                   </div>
+@@ -209,14 +261,14 @@
+                         step="10"
+                         min="0"
+                         value={cost.monthlyValue}
+-                        onChange={(e) => handleUpdateValue(cost.id, Number(e.target.value))}
++                        onChange={(e) => handleUpdateValue(cost.id, Number(e.target.value), false)}
+                         className="bg-transparent text-sm font-bold tech-font-mono font-mono text-zinc-900 dark:text-white focus:outline-none text-right w-20"
+                       />
+                     </div>
+ 
+                     <button
+-                      onClick={() => handleDeleteCost(cost.id)}
++                      onClick={() => handleDeleteCost(cost.id, false)}
+                       className="p-1.5 text-zinc-400 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-700/50 rounded-lg transition-colors"
+                       title="Excluir custo"
+                       id={`btn-delete-fixedcost-${cost.id}`}
+@@ -228,6 +280,63 @@
+               ))}
+             </div>
+           )}
++
++          {/* Variáveis */}
++          <div className="flex justify-between items-center mb-4 mt-8">
++            <h4 className="text-base font-bold tech-font-serif-italic font-serif italic text-zinc-900 dark:text-white flex items-center space-x-2">
++              <DollarSign className="w-5 h-5 text-brand-orange" />
++              <span>Detalhamento dos Custos Variáveis</span>
++            </h4>
++            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold tech-font-mono font-mono bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-200/50 dark:border-zinc-800">
++              {variableCosts.length} Itens
++            </span>
++          </div>
++
++          {variableCosts.length === 0 ? (
++            <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg">
++              <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
++              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Nenhum custo variável cadastrado</p>
++            </div>
++          ) : (
++            <div className="space-y-3">
++              {variableCosts.map((cost) => (
++                <div 
++                  key={cost.id}
++                  className="p-4 bg-zinc-50/50 dark:bg-zinc-800/20 border border-zinc-200 dark:border-zinc-700 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all"
++                >
++                  <div className="flex-1 min-w-0">
++                    <input
++                      type="text"
++                      value={cost.name}
++                      onChange={(e) => handleUpdateName(cost.id, e.target.value, true)}
++                      className="bg-transparent text-sm font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none focus:bg-white dark:focus:bg-zinc-900 border-b border-transparent focus:border-zinc-300 w-full px-1 py-0.5"
++                    />
++                  </div>
++
++                  <div className="flex items-center justify-between sm:justify-end space-x-4 pl-1 sm:pl-0">
++                    <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-zinc-900 px-2 py-1 rounded-md border border-zinc-200/50 dark:border-zinc-800">
++                      <span className="text-zinc-400 dark:text-zinc-500 text-xs font-semibold">R$</span>
++                      <input
++                        type="number"
++                        step="10"
++                        min="0"
++                        value={cost.monthlyValue}
++                        onChange={(e) => handleUpdateValue(cost.id, Number(e.target.value), true)}
++                        className="bg-transparent text-sm font-bold tech-font-mono font-mono text-zinc-900 dark:text-white focus:outline-none text-right w-20"
++                      />
++                    </div>
++
++                    <button
++                      onClick={() => handleDeleteCost(cost.id, true)}
++                      className="p-1.5 text-zinc-400 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-700/50 rounded-lg transition-colors"
++                      title="Excluir custo"
++                      id={`btn-delete-varcost-${cost.id}`}
++                    >
++                      <Trash2 className="w-4.5 h-4.5" />
++                    </button>
++                  </div>
++                </div>
++              ))}
++            </div>
++          )}
+         </div>
+       </div>

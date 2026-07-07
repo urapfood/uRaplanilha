@@ -1,0 +1,45 @@
+--- src/components/Dashboard.tsx
++++ src/components/Dashboard.tsx
+@@ -8,7 +8,7 @@
+   ShoppingBag,
+   Target
+ } from 'lucide-react';
+-import { Product, Tax, FixedCost, Sale } from '../types';
++import { Product, Tax, FixedCost, VariableCost, Sale } from '../types';
+ import { 
+   calculateProductMetrics, 
+   getActiveTaxPercentage, 
+@@ -32,10 +32,11 @@
+   products: Product[];
+   taxes: Tax[];
+   fixedCosts: FixedCost[];
++  variableCosts: VariableCost[];
+   sales?: Sale[];
+ }
+ 
+-export default function Dashboard({ products, taxes, fixedCosts, sales = [] }: DashboardProps) {
++export default function Dashboard({ products, taxes, fixedCosts, variableCosts, sales = [] }: DashboardProps) {
+   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
+ 
+   const stats = useMemo(() => {
+@@ -90,13 +91,15 @@
+ 
+     // 5. Fixed Costs
+     const totalFixedCosts = fixedCosts.reduce((sum, fc) => sum + fc.monthlyValue, 0);
+-    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalFixedCosts;
++    const totalVariableCosts = variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
++    const totalDespesas = totalFixedCosts + totalVariableCosts;
++    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalDespesas;
+ 
+     return {
+       totalMonthlyRevenue,
+       monthlyNetProfit,
+       pdvNetProfit,
+-      totalFixedCosts,
++      totalFixedCosts: totalDespesas,
+       finalMonthlyResult,
+     };
+-  }, [products, taxes, fixedCosts, activeTaxRate, sales]);
++  }, [products, taxes, fixedCosts, variableCosts, activeTaxRate, sales]);
+ 
+   // Chart data preparation

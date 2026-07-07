@@ -8,7 +8,7 @@ import {
   PieChart, 
   AlertCircle 
 } from 'lucide-react';
-import { Product, Tax, FixedCost, Sale } from '../types';
+import { Product, Tax, FixedCost, VariableCost, Sale } from '../types';
 import { 
   calculateProductMetrics, 
   formatCurrency, 
@@ -32,10 +32,11 @@ interface DashboardProps {
   products: Product[];
   taxes: Tax[];
   fixedCosts: FixedCost[];
+  variableCosts: VariableCost[];
   sales?: Sale[];
 }
 
-export default function Dashboard({ products, taxes, fixedCosts, sales = [] }: DashboardProps) {
+export default function Dashboard({ products, taxes, fixedCosts, variableCosts, sales = [] }: DashboardProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   // Compute stats
@@ -90,7 +91,9 @@ export default function Dashboard({ products, taxes, fixedCosts, sales = [] }: D
 
     // 5. Fixed Costs
     const totalFixedCosts = fixedCosts.reduce((sum, fc) => sum + fc.monthlyValue, 0);
-    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalFixedCosts;
+    const totalVariableCosts = variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
+    const totalDespesas = totalFixedCosts + totalVariableCosts;
+    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalDespesas;
 
     return {
       highestProfitProduct: highestProfit ? {
@@ -107,10 +110,10 @@ export default function Dashboard({ products, taxes, fixedCosts, sales = [] }: D
       monthlyNetProfit,
       pdvRevenue,
       pdvNetProfit,
-      totalFixedCosts,
+      totalFixedCosts: totalDespesas,
       finalMonthlyResult,
     };
-  }, [products, taxes, fixedCosts, activeTaxRate, sales]);
+  }, [products, taxes, fixedCosts, variableCosts, activeTaxRate, sales]);
 
   // Chart data preparation
   const chartData = useMemo(() => {
@@ -199,7 +202,7 @@ export default function Dashboard({ products, taxes, fixedCosts, sales = [] }: D
                 <Briefcase className="w-4 h-4 text-brand-terracota dark:text-brand-orange" />
               </div>
               <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Custos Fixos Mensais
+                Custos (Fixos + Var)
               </p>
             </div>
             <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 mt-1 break-words">

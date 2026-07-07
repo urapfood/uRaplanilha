@@ -24,6 +24,9 @@ service cloud.firestore {
     match /users/{userId}/suppliers/{document} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    match /users/{userId}/variableCosts/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
     
     // Allow reading and writing the user profile document itself
     match /users/{userId} {

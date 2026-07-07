@@ -10,7 +10,7 @@ import {
   getDocs,
   writeBatch
 } from 'firebase/firestore';
-import { Product, Tax, FixedCost, Recipe, Sale, SupplierItem } from './types';
+import { Product, Tax, FixedCost, Recipe, Sale, SupplierItem, VariableCost } from './types';
 
 // Config retrieved from firebase-applet-config.json
 const firebaseConfig = {
@@ -199,6 +199,46 @@ export async function deleteFixedCost(userId: string, fixedCostId: string) {
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `users/${userId}/fixedCosts/${fixedCostId}`);
+  }
+}
+
+/**
+ * Sync variable costs in real-time from Firestore for a specific user
+ */
+export function subscribeToVariableCosts(userId: string, callback: (variableCosts: VariableCost[]) => void) {
+  const colRef = collection(db, 'users', userId, 'variableCosts');
+  return onSnapshot(colRef, (snapshot) => {
+    const variableCosts: VariableCost[] = [];
+    snapshot.forEach((doc) => {
+      variableCosts.push({ id: doc.id, ...doc.data() } as VariableCost);
+    });
+    callback(variableCosts);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/variableCosts`);
+  });
+}
+
+/**
+ * Save or update a variable cost in Firestore for a specific user
+ */
+export async function saveVariableCost(userId: string, variableCost: VariableCost) {
+  try {
+    const docRef = doc(db, 'users', userId, 'variableCosts', variableCost.id);
+    await setDoc(docRef, variableCost);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/variableCosts/${variableCost.id}`);
+  }
+}
+
+/**
+ * Delete a variable cost from Firestore for a specific user
+ */
+export async function deleteVariableCost(userId: string, variableCostId: string) {
+  try {
+    const docRef = doc(db, 'users', userId, 'variableCosts', variableCostId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/variableCosts/${variableCostId}`);
   }
 }
 

@@ -1,0 +1,47 @@
+--- src/components/ReportsTab.tsx
++++ src/components/ReportsTab.tsx
+@@ -14,13 +14,14 @@
+   Package,
+   Info
+ } from 'lucide-react';
+-import { Product, Tax, FixedCost } from '../types';
++import { Product, Tax, FixedCost, VariableCost } from '../types';
+ import { getProductCost, getActiveTaxPercentage, formatCurrency } from '../utils';
+ 
+ interface ReportsTabProps {
+   products: Product[];
+   taxes: Tax[];
+   fixedCosts: FixedCost[];
++  variableCosts: VariableCost[];
+ }
+ 
+-export default function ReportsTab({ products, taxes, fixedCosts }: ReportsTabProps) {
++export default function ReportsTab({ products, taxes, fixedCosts, variableCosts }: ReportsTabProps) {
+   // Sub-tabs: 'dia' | 'semana' | 'mes'
+   const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
+   
+@@ -83,18 +84,20 @@
+       totalNetProfit += netProfit;
+     });
+ 
+-    const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+-    const finalResult = totalNetProfit - totalFixed;
++    const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
++    const totalVariable = variableCosts?.reduce((sum, item) => sum + item.monthlyValue, 0) || 0;
++    const totalDespesas = totalFixed + totalVariable;
++    const finalResult = totalNetProfit - totalDespesas;
+ 
+     return {
+       productRows,
+       totalRevenue,
+       totalCost,
+       totalTax,
+       totalNetProfit,
+-      totalFixed,
++      totalFixed: totalDespesas,
+       finalResult
+     };
+-  }, [products, taxes, fixedCosts, activeTaxPercentage]);
++  }, [products, taxes, fixedCosts, variableCosts, activeTaxPercentage]);
+ 
+   // 2. Calculations for "Por Dia" (Daily view)

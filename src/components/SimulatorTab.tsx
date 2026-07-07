@@ -8,7 +8,7 @@ import {
   HelpCircle,
   Info
 } from 'lucide-react';
-import { Product, Tax, FixedCost } from '../types';
+import { Product, Tax, FixedCost, VariableCost } from '../types';
 import { 
   calculateProductMetrics, 
   formatCurrency, 
@@ -20,6 +20,7 @@ interface SimulatorTabProps {
   setProducts: (products: Product[]) => void;
   taxes: Tax[];
   fixedCosts: FixedCost[];
+  variableCosts: VariableCost[];
 }
 
 export default function SimulatorTab({
@@ -27,12 +28,19 @@ export default function SimulatorTab({
   setProducts,
   taxes,
   fixedCosts,
+  variableCosts
 }: SimulatorTabProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   const totalFixedCosts = useMemo(() => {
     return fixedCosts.reduce((sum, fc) => sum + fc.monthlyValue, 0);
   }, [fixedCosts]);
+
+  const totalVariableCosts = useMemo(() => {
+    return variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
+  }, [variableCosts]);
+
+  const totalDespesas = totalFixedCosts + totalVariableCosts;
 
   // Calculations for simulated metrics
   const simulationMetrics = useMemo(() => {
@@ -64,8 +72,8 @@ export default function SimulatorTab({
       };
     });
 
-    const netResult = totalNetProfit - totalFixedCosts;
-
+    const netResult = totalNetProfit - totalDespesas;
+    
     return {
       totalRevenue,
       totalNetProfit,
@@ -73,7 +81,7 @@ export default function SimulatorTab({
       netResult,
       rows: rowDetails,
     };
-  }, [products, activeTaxRate, totalFixedCosts]);
+  }, [products, activeTaxRate, totalDespesas]);
 
   const handleUpdateQty = (id: string, qtyValue: number) => {
     const qty = isNaN(qtyValue) || qtyValue < 0 ? 0 : Math.round(qtyValue);
@@ -137,11 +145,11 @@ export default function SimulatorTab({
               <Briefcase className="w-4 h-4" />
             </div>
             <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-              Custos Fixos Totais
+              Custos Mensais
             </span>
           </div>
           <span className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 mt-1 break-words block">
-            {formatCurrency(totalFixedCosts)}
+            {formatCurrency(totalDespesas)}
           </span>
         </div>
 

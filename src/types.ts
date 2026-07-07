@@ -71,7 +71,13 @@ export interface Sale {
 // Initial default data for uRapFood delivery
 export const INITIAL_TAXES: Tax[] = [];
 
-export const INITIAL_FIXED_COSTS: FixedCost[] = [];
+export interface VariableCost {
+  id: string;
+  name: string;
+  monthlyValue: number;
+}
+
+export const INITIAL_VARIABLE_COSTS: VariableCost[] = [];
 
 export const INITIAL_PRODUCTS: Product[] = [];
 

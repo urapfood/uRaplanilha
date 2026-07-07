@@ -1,0 +1,69 @@
+--- src/components/SimulatorTab.tsx
++++ src/components/SimulatorTab.tsx
+@@ -7,12 +7,13 @@
+   Info 
+ } from 'lucide-react';
+-import { Product, Tax, FixedCost } from '../types';
++import { Product, Tax, FixedCost, VariableCost } from '../types';
+ import { getProductCost, getActiveTaxPercentage, formatCurrency } from '../utils';
+ 
+ interface SimulatorTabProps {
+   products: Product[];
+   taxes: Tax[];
+   fixedCosts: FixedCost[];
++  variableCosts: VariableCost[];
+ }
+ 
+ export default function SimulatorTab({ 
+   products, 
+   taxes, 
+-  fixedCosts 
++  fixedCosts,
++  variableCosts
+ }: SimulatorTabProps) {
+ 
+   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
+ 
+   const totalFixedCosts = useMemo(() => {
+     return fixedCosts.reduce((sum, fc) => sum + fc.monthlyValue, 0);
+   }, [fixedCosts]);
+ 
++  const totalVariableCosts = useMemo(() => {
++    return variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
++  }, [variableCosts]);
++
++  const totalDespesas = totalFixedCosts + totalVariableCosts;
++
+   const simulation = useMemo(() => {
+     let totalRevenue = 0;
+     let totalCost = 0;
+@@ -64,12 +65,12 @@
+     const totalTaxValue = totalRevenue * (activeTaxRate / 100);
+     const totalNetProfit = totalRevenue - totalCost - totalTaxValue;
+     
+-    const netResult = totalNetProfit - totalFixedCosts;
++    const netResult = totalNetProfit - totalDespesas;
+     const resultMargin = totalRevenue > 0 ? (netResult / totalRevenue) * 100 : 0;
+ 
+     return {
+       totalRevenue,
+       totalCost,
+       totalTaxValue,
+       totalNetProfit,
+       netResult,
+       resultMargin,
+       items
+     };
+-  }, [products, activeTaxRate, totalFixedCosts]);
++  }, [products, activeTaxRate, totalDespesas]);
+ 
+   return (
+     <div className="space-y-6 animate-fade-in">
+@@ -141,7 +142,7 @@
+           <div className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-100 dark:border-zinc-750 flex items-center justify-between">
+             <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Custos Mensais (Fixo+Var)</span>
+             <span className="text-base font-bold tech-font-mono font-mono text-zinc-900 dark:text-white">
+-              {formatCurrency(totalFixedCosts)}
++              {formatCurrency(totalDespesas)}
+             </span>
+           </div>

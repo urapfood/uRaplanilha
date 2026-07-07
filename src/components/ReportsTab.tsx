@@ -17,7 +17,7 @@ import {
   PieChart as PieIcon,
   HelpCircle
 } from 'lucide-react';
-import { Product, Tax, FixedCost } from '../types';
+import { Product, Tax, FixedCost, VariableCost } from '../types';
 import { formatCurrency, formatPercent, getActiveTaxPercentage, calculateProductMetrics } from '../utils';
 import { 
   BarChart, 
@@ -36,9 +36,10 @@ interface ReportsTabProps {
   products: Product[];
   taxes: Tax[];
   fixedCosts: FixedCost[];
+  variableCosts: VariableCost[];
 }
 
-export default function ReportsTab({ products, taxes, fixedCosts }: ReportsTabProps) {
+export default function ReportsTab({ products, taxes, fixedCosts, variableCosts }: ReportsTabProps) {
   // Sub-tabs: 'dia' | 'semana' | 'mes'
   const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
   
@@ -84,7 +85,9 @@ export default function ReportsTab({ products, taxes, fixedCosts }: ReportsTabPr
     });
 
     const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
-    const finalResult = totalNetProfit - totalFixed;
+    const totalVariable = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+    const totalDespesas = totalFixed + totalVariable;
+    const finalResult = totalNetProfit - totalDespesas;
 
     return {
       productRows,
@@ -92,11 +95,11 @@ export default function ReportsTab({ products, taxes, fixedCosts }: ReportsTabPr
       totalIngredientsCost,
       totalTaxesPaid,
       totalNetProfit, // Net profit from products (contribution margin in R$)
-      totalFixed,
+      totalFixed: totalDespesas,
       finalResult, // Bottom-line cash left
       totalQty
     };
-  }, [products, taxes, fixedCosts, activeTaxPercentage]);
+  }, [products, taxes, fixedCosts, variableCosts, activeTaxPercentage]);
 
   // 2. Calculations for "Por Dia" (Daily view)
   const dailyMetrics = useMemo(() => {

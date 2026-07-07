@@ -1,0 +1,103 @@
+--- src/App.tsx
++++ src/App.tsx
+@@ -30,6 +30,7 @@
+   Product, 
+   Tax, 
+   FixedCost, 
++  VariableCost,
+   Recipe,
+   Sale,
+   SupplierItem,
+@@ -43,6 +44,7 @@
+   subscribeToProducts, saveProduct, deleteProduct,
+   subscribeToTaxes, saveTax, deleteTax,
+   subscribeToFixedCosts, saveFixedCost, deleteFixedCost,
++  subscribeToVariableCosts, saveVariableCost, deleteVariableCost,
+   subscribeToRecipes, saveRecipe, deleteRecipe,
+   subscribeToSales, saveSale, deleteSale,
+   subscribeToSuppliers, saveSupplier, deleteSupplier,
+@@ -66,6 +68,7 @@
+   const [products, setProductsState] = useState<Product[]>([]);
+   const [taxes, setTaxesState] = useState<Tax[]>([]);
+   const [fixedCosts, setFixedCostsState] = useState<FixedCost[]>([]);
++  const [variableCosts, setVariableCostsState] = useState<VariableCost[]>([]);
+   const [recipes, setRecipesState] = useState<Recipe[]>([]);
+   const [sales, setSalesState] = useState<Sale[]>([]);
+   const [suppliers, setSuppliersState] = useState<SupplierItem[]>([]);
+@@ -96,6 +99,7 @@
+       setProductsState([]);
+       setTaxesState([]);
+       setFixedCostsState([]);
++      setVariableCostsState([]);
+       setRecipesState([]);
+       setSalesState([]);
+       setSuppliersState([]);
+@@ -105,7 +109,7 @@
+     let loadedCount = 0;
+     const checkLoading = () => {
+       loadedCount++;
+-      if (loadedCount >= 6) {
++      if (loadedCount >= 7) {
+         setLoading(false);
+       }
+     };
+@@ -125,6 +129,10 @@
+       setFixedCostsState(data);
+       checkLoading();
+     });
++    const unsubVarCosts = subscribeToVariableCosts(userId, (data) => {
++      setVariableCostsState(data);
++      checkLoading();
++    });
+     const unsubRecipes = subscribeToRecipes(userId, (data) => {
+       setRecipesState(data);
+       checkLoading();
+@@ -141,6 +149,7 @@
+       unsubProducts();
+       unsubTaxes();
+       unsubFixed();
++      unsubVarCosts();
+       unsubRecipes();
+       unsubSales();
+       unsubSuppliers();
+@@ -209,6 +218,10 @@
+     syncCollection(value, fixedCosts, saveFixedCost, deleteFixedCost);
+   };
+ 
++  const setVariableCosts = (value: React.SetStateAction<VariableCost[]>) => {
++    syncCollection(value, variableCosts, saveVariableCost, deleteVariableCost);
++  };
++
+   const setRecipes = (value: React.SetStateAction<Recipe[]>) => {
+     syncCollection(value, recipes, saveRecipe, deleteRecipe);
+   };
+@@ -251,6 +264,7 @@
+         products,
+         taxes,
+         fixedCosts,
++        variableCosts,
+         recipes,
+       };
+       const blob = new Blob([JSON.stringify(dataExport, null, 2)], { type: 'application/json' });
+@@ -335,6 +349,7 @@
+         if (parsed.products && Array.isArray(parsed.products)) setProducts(parsed.products);
+         if (parsed.taxes && Array.isArray(parsed.taxes)) setTaxes(parsed.taxes);
+         if (parsed.fixedCosts && Array.isArray(parsed.fixedCosts)) setFixedCosts(parsed.fixedCosts);
++        if (parsed.variableCosts && Array.isArray(parsed.variableCosts)) setVariableCosts(parsed.variableCosts);
+         if (parsed.recipes && Array.isArray(parsed.recipes)) {
+           setRecipes(parsed.recipes);
+         }
+@@ -578,7 +593,12 @@
+               )}
+ 
+               {activeTab === 'custos' && (
+-                <FixedCostTab fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />
++                <FixedCostTab 
++                  fixedCosts={fixedCosts} 
++                  setFixedCosts={setFixedCosts} 
++                  variableCosts={variableCosts}
++                  setVariableCosts={setVariableCosts}
++                />
+               )}
+ 
+               {activeTab === 'simulador' && (
