@@ -141,11 +141,11 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
 
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-3">
+          <div className="inline-flex items-center justify-center mb-3 bg-zinc-900/10 dark:bg-zinc-100/5 p-2 rounded-2xl">
             <img 
-              src="https://i.imgur.com/s6faISQ.png" 
+              src="https://i.imgur.com/MVE864o.png" 
               alt="Logo uRapFood" 
-              className="w-16 h-16 object-contain rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white shadow-sm p-1"
+              className="w-16 h-16 object-contain"
               referrerPolicy="no-referrer"
             />
           </div>

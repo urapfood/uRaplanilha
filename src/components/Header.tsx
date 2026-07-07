@@ -51,11 +51,11 @@ export default function Header({
           
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center bg-zinc-900/10 dark:bg-zinc-100/5 p-1.5 rounded-xl">
               <img 
-                src="https://i.imgur.com/s6faISQ.png" 
+                src="https://i.imgur.com/MVE864o.png" 
                 alt="Logo uRapFood" 
-                className="w-11 h-11 object-contain rounded-xl border border-zinc-100 dark:border-zinc-800 bg-white shadow-xs p-0.5" 
+                className="w-10 h-10 object-contain" 
                 referrerPolicy="no-referrer"
               />
             </div>
