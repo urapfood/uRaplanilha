@@ -409,7 +409,7 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-4xl max-h-[95vh] overflow-y-auto shadow-2xl flex flex-col">
             
             {/* Modal Header */}
             <div className="p-5 border-b border-zinc-100 dark:border-zinc-700 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/20">
@@ -426,223 +426,232 @@ export default function ProductTab({ products, setProducts, taxes }: ProductTabP
             </div>
 
             {/* Modal Body / Form */}
-            <form onSubmit={handleSaveProduct} className="p-6 space-y-6 flex-1">
+            <form onSubmit={handleSaveProduct} className="p-6 space-y-6 flex-1 flex flex-col min-h-0">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Product Name */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="prod-name" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Nome do Produto *
-                  </label>
-                  <input
-                    type="text"
-                    id="prod-name"
-                    required
-                    placeholder="Ex: Wrap de Frango Cream Cheese"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
-                  />
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label htmlFor="prod-category" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Categoria (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    id="prod-category"
-                    placeholder="Ex: Wraps, Bebidas, Sobremesas"
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
-                  />
-                </div>
-
-                {/* Selling Price */}
-                <div>
-                  <label htmlFor="prod-price" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Preço de Venda (R$) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold pointer-events-none">R$</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                
+                {/* Left Column: Product Info */}
+                <div className="space-y-4">
+                  {/* Product Name */}
+                  <div>
+                    <label htmlFor="prod-name" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                      Nome do Produto *
+                    </label>
                     <input
-                      type="number"
-                      id="prod-price"
+                      type="text"
+                      id="prod-name"
                       required
-                      step="0.01"
-                      min="0"
-                      placeholder="Ex: 28.90"
-                      value={formSellingPrice}
-                      onChange={(e) => setFormSellingPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full pl-8 pr-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
+                      placeholder="Ex: Wrap de Frango Cream Cheese"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Cost Source Toggle */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                  Método de Custo de Ingredientes
-                </label>
-                <div className="grid grid-cols-2 gap-2 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/50 dark:border-zinc-850">
-                  <button
-                    type="button"
-                    onClick={() => setFormCostType('single')}
-                    className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      formCostType === 'single'
-                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
-                    }`}
-                  >
-                    Valor Único Estimado
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormCostType('detailed')}
-                    className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      formCostType === 'detailed'
-                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
-                    }`}
-                  >
-                    Detalhamento de Ingredientes
-                  </button>
-                </div>
-              </div>
-
-              {/* Single Cost Input */}
-              {formCostType === 'single' ? (
-                <div className="bg-zinc-50 dark:bg-zinc-900/40 p-4 rounded-xl border border-zinc-150 dark:border-zinc-750">
-                  <label htmlFor="prod-single-cost" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Custo de Insumos / Ingredientes Unitário (R$)
-                  </label>
-                  <div className="relative max-w-xs">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold pointer-events-none">R$</span>
+                  {/* Category */}
+                  <div>
+                    <label htmlFor="prod-category" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                      Categoria (Opcional)
+                    </label>
                     <input
-                      type="number"
-                      id="prod-single-cost"
-                      step="0.01"
-                      min="0"
-                      placeholder="Ex: 8.50"
-                      value={formSingleCost}
-                      onChange={(e) => setFormSingleCost(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full pl-8 pr-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                      type="text"
+                      id="prod-category"
+                      placeholder="Ex: Wraps, Bebidas, Sobremesas"
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
                     />
                   </div>
-                  <p className="text-[10px] text-zinc-400 mt-1.5">
-                    Informe o custo direto somado de todos os ingredientes e embalagens envolvidos na fabricação desse produto.
-                  </p>
-                </div>
-              ) : (
-                /* Detailed Recipe Costing */
-                <div className="bg-zinc-50 dark:bg-zinc-900/40 p-4 rounded-xl border border-zinc-150 dark:border-zinc-750 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                      Receita do Produto (Ingredientes & Embalagens)
-                    </span>
-                    <span className="text-xs font-bold text-brand-tomato bg-brand-tomato/5 px-2.5 py-1 rounded-full border border-brand-tomato/10">
-                      Custo Somado: {formatCurrency(formIngredientsTotalCost)}
-                    </span>
-                  </div>
 
-                  {/* Add Ingredient form */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700">
-                    <div className="sm:col-span-2">
-                      <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">Nome do Item</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Tortilla, 120g Frango, Box"
-                        value={newIngName}
-                        onChange={(e) => setNewIngName(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white"
-                      />
-                    </div>
-                    <div className="flex space-x-1.5 items-center">
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">Custo (R$)</label>
+                  {/* Price and Sales Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Selling Price */}
+                    <div>
+                      <label htmlFor="prod-price" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                        Preço de Venda (R$) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold pointer-events-none">R$</span>
                         <input
                           type="number"
+                          id="prod-price"
+                          required
                           step="0.01"
                           min="0"
-                          placeholder="0.00"
-                          value={newIngCost}
-                          onChange={(e) => setNewIngCost(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white"
+                          placeholder="Ex: 28.90"
+                          value={formSellingPrice}
+                          onChange={(e) => setFormSellingPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full pl-8 pr-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
                         />
                       </div>
+                    </div>
+
+                    {/* Estimated Sales */}
+                    <div>
+                      <label htmlFor="prod-sales" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                        Qtd. Vendida / Mês (Est.)
+                      </label>
+                      <input
+                        type="number"
+                        id="prod-sales"
+                        min="0"
+                        placeholder="Ex: 150"
+                        value={formEstimatedSales}
+                        onChange={(e) => setFormEstimatedSales(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Observation / Notes */}
+                  <div>
+                    <label htmlFor="prod-notes" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                      Observação / Detalhe
+                    </label>
+                    <input
+                      type="text"
+                      id="prod-notes"
+                      placeholder="Ex: Coca-cola comprada em fardo, ou custo do queijo estimado"
+                      value={formNotes}
+                      onChange={(e) => setFormNotes(e.target.value)}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Ingredients & Cost */}
+                <div className="space-y-4 bg-zinc-50 dark:bg-zinc-900/15 p-4 rounded-2xl border border-zinc-150 dark:border-zinc-750/80">
+                  {/* Cost Source Toggle */}
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                      Método de Custo de Ingredientes
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/50 dark:border-zinc-850">
                       <button
                         type="button"
-                        onClick={handleAddIngredient}
-                        className="p-2 bg-zinc-800 dark:bg-zinc-700 text-white rounded-lg hover:bg-zinc-700 transition-colors shrink-0 mt-4.5"
-                        title="Adicionar item à receita"
+                        onClick={() => setFormCostType('single')}
+                        className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          formCostType === 'single'
+                            ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        }`}
                       >
-                        <Plus className="w-4 h-4" />
+                        Valor Único Estimado
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormCostType('detailed')}
+                        className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          formCostType === 'detailed'
+                            ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        }`}
+                      >
+                        Detalhamento de Ingredientes
                       </button>
                     </div>
                   </div>
 
-                  {/* Ingredients List */}
-                  {formIngredients.length === 0 ? (
-                    <p className="text-center text-xs text-zinc-400 py-3">
-                      Nenhum ingrediente cadastrado. Use o formulário acima para somar os custos.
-                    </p>
+                  {/* Single Cost Input */}
+                  {formCostType === 'single' ? (
+                    <div className="space-y-2">
+                      <label htmlFor="prod-single-cost" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
+                        Custo de Insumos / Ingredientes Unitário (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold pointer-events-none">R$</span>
+                        <input
+                          type="number"
+                          id="prod-single-cost"
+                          step="0.01"
+                          min="0"
+                          placeholder="Ex: 8.50"
+                          value={formSingleCost}
+                          onChange={(e) => setFormSingleCost(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full pl-8 pr-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                        />
+                      </div>
+                      <p className="text-[10px] text-zinc-400 leading-relaxed pt-1">
+                        Informe o custo direto somado de todos os ingredientes e embalagens envolvidos na fabricação desse produto.
+                      </p>
+                    </div>
                   ) : (
-                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-                      {formIngredients.map((ing) => (
-                        <div key={ing.id} className="flex justify-between items-center text-xs bg-white dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-150 dark:border-zinc-700/80">
-                          <span className="font-medium text-zinc-800 dark:text-zinc-200">{ing.name}</span>
-                          <div className="flex items-center space-x-3">
-                            <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(ing.cost)}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveIngredient(ing.id)}
-                              className="text-zinc-400 hover:text-brand-tomato p-0.5 rounded transition-colors"
-                              title="Remover"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                    /* Detailed Recipe Costing */
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                          Receita do Produto (Ingredientes & Embalagens)
+                        </span>
+                        <span className="text-[11px] font-bold text-brand-tomato bg-brand-tomato/5 px-2.5 py-1 rounded-full border border-brand-tomato/10">
+                          Custo Somado: {formatCurrency(formIngredientsTotalCost)}
+                        </span>
+                      </div>
+
+                      {/* Add Ingredient form */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700">
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">Nome do Item</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Tortilla, 120g Frango, Box"
+                            value={newIngName}
+                            onChange={(e) => setNewIngName(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white"
+                          />
                         </div>
-                      ))}
+                        <div className="flex space-x-1 items-center">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">Custo (R$)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={newIngCost}
+                              onChange={(e) => setNewIngCost(e.target.value === '' ? '' : Number(e.target.value))}
+                              className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddIngredient}
+                            className="p-1.5 bg-zinc-800 dark:bg-zinc-700 text-white rounded-lg hover:bg-zinc-700 transition-colors shrink-0"
+                            title="Adicionar item à receita"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Ingredients List */}
+                      {formIngredients.length === 0 ? (
+                        <p className="text-center text-xs text-zinc-400 py-4 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl bg-white/30 dark:bg-black/10">
+                          Nenhum ingrediente cadastrado. Use o formulário acima para somar os custos.
+                        </p>
+                      ) : (
+                        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 border border-zinc-200/40 dark:border-zinc-700/40 rounded-xl p-1.5 bg-white/40 dark:bg-black/10">
+                          {formIngredients.map((ing) => (
+                            <div key={ing.id} className="flex justify-between items-center text-xs bg-white dark:bg-zinc-850 px-3 py-1.5 rounded-lg border border-zinc-150 dark:border-zinc-750">
+                              <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[120px]">{ing.name}</span>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(ing.cost)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveIngredient(ing.id)}
+                                  className="text-zinc-400 hover:text-brand-tomato p-0.5 rounded transition-colors"
+                                  title="Remover"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Estimated Sales */}
-                <div>
-                  <label htmlFor="prod-sales" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Qtd. Vendida / Mês (Est.)
-                  </label>
-                  <input
-                    type="number"
-                    id="prod-sales"
-                    min="0"
-                    placeholder="Ex: 150"
-                    value={formEstimatedSales}
-                    onChange={(e) => setFormEstimatedSales(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
-                  />
-                </div>
-
-                {/* Observation / Notes */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="prod-notes" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                    Observação / Detalhe
-                  </label>
-                  <input
-                    type="text"
-                    id="prod-notes"
-                    placeholder="Ex: Coca-cola comprada em fardo, ou custo do queijo estimado"
-                    value={formNotes}
-                    onChange={(e) => setFormNotes(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-tomato/20 focus:border-brand-tomato dark:text-white"
-                  />
-                </div>
               </div>
 
               {formError && (
