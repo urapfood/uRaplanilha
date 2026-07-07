@@ -8,7 +8,7 @@ import {
   PieChart, 
   AlertCircle 
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost, Sale } from '../types';
+import { Product, Tax, FixedCost, VariableCost, Sale, OtherRevenue } from '../types';
 import { 
   calculateProductMetrics, 
   formatCurrency, 
@@ -33,10 +33,11 @@ interface DashboardProps {
   taxes: Tax[];
   fixedCosts: FixedCost[];
   variableCosts: VariableCost[];
+  otherRevenues: OtherRevenue[];
   sales?: Sale[];
 }
 
-export default function Dashboard({ products, taxes, fixedCosts, variableCosts, sales = [] }: DashboardProps) {
+export default function Dashboard({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [] }: DashboardProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   // Compute stats
@@ -93,7 +94,8 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
     const totalFixedCosts = fixedCosts.reduce((sum, fc) => sum + fc.monthlyValue, 0);
     const totalVariableCosts = variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
     const totalDespesas = totalFixedCosts + totalVariableCosts;
-    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalDespesas;
+    const totalOtherRevenues = otherRevenues.reduce((sum, or) => sum + or.monthlyValue, 0);
+    const finalMonthlyResult = (monthlyNetProfit + pdvNetProfit) - totalDespesas + totalOtherRevenues;
 
     return {
       highestProfitProduct: highestProfit ? {
@@ -111,9 +113,10 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
       pdvRevenue,
       pdvNetProfit,
       totalFixedCosts: totalDespesas,
+      totalOtherRevenues,
       finalMonthlyResult,
     };
-  }, [products, taxes, fixedCosts, variableCosts, activeTaxRate, sales]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxRate, sales]);
 
   // Chart data preparation
   const chartData = useMemo(() => {
@@ -150,7 +153,7 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
     <div className="space-y-8 animate-fade-in">
       
       {/* 4 Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Card 1: Faturamento do Mês */}
         <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
@@ -211,6 +214,26 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
           </div>
           <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
             Soma das despesas operacionais
+          </p>
+        </div>
+
+        {/* Card Extra: Receitas Extras */}
+        <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center space-x-2.5 mb-3">
+              <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+                <DollarSign className="w-4 h-4" />
+              </div>
+              <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Receitas Extras Mensal
+              </p>
+            </div>
+            <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 dark:text-emerald-400 mt-1 break-words">
+              {formatCurrency(stats.totalOtherRevenues || 0)}
+            </h4>
+          </div>
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+            Entradas além das vendas diretas
           </p>
         </div>
 

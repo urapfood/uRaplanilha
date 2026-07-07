@@ -77,6 +77,12 @@ export interface VariableCost {
   monthlyValue: number;
 }
 
+export interface OtherRevenue {
+  id: string;
+  name: string;
+  monthlyValue: number;
+}
+
 export const INITIAL_VARIABLE_COSTS: VariableCost[] = [];
 
 export const INITIAL_PRODUCTS: Product[] = [];

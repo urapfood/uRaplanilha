@@ -1,47 +1,45 @@
 --- src/components/ReportsTab.tsx
 +++ src/components/ReportsTab.tsx
-@@ -14,13 +14,14 @@
-   Package,
-   Info
+@@ -17,7 +17,7 @@
+   PieChart as PieIcon,
+   HelpCircle
  } from 'lucide-react';
--import { Product, Tax, FixedCost } from '../types';
-+import { Product, Tax, FixedCost, VariableCost } from '../types';
- import { getProductCost, getActiveTaxPercentage, formatCurrency } from '../utils';
- 
- interface ReportsTabProps {
-   products: Product[];
+-import { Product, Tax, FixedCost, VariableCost } from '../types';
++import { Product, Tax, FixedCost, VariableCost, OtherRevenue } from '../types';
+ import { formatCurrency, formatPercent, getActiveTaxPercentage, calculateProductMetrics } from '../utils';
+ import { 
+   BarChart, 
+@@ -36,9 +36,10 @@
    taxes: Tax[];
    fixedCosts: FixedCost[];
-+  variableCosts: VariableCost[];
+   variableCosts: VariableCost[];
++  otherRevenues: OtherRevenue[];
  }
  
--export default function ReportsTab({ products, taxes, fixedCosts }: ReportsTabProps) {
-+export default function ReportsTab({ products, taxes, fixedCosts, variableCosts }: ReportsTabProps) {
+-export default function ReportsTab({ products, taxes, fixedCosts, variableCosts }: ReportsTabProps) {
++export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues }: ReportsTabProps) {
    // Sub-tabs: 'dia' | 'semana' | 'mes'
    const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
    
-@@ -83,18 +84,20 @@
-       totalNetProfit += netProfit;
-     });
- 
--    const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
--    const finalResult = totalNetProfit - totalFixed;
-+    const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
-+    const totalVariable = variableCosts?.reduce((sum, item) => sum + item.monthlyValue, 0) || 0;
-+    const totalDespesas = totalFixed + totalVariable;
-+    const finalResult = totalNetProfit - totalDespesas;
+@@ -87,14 +88,16 @@
+     const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+     const totalVariable = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
+     const totalDespesas = totalFixed + totalVariable;
+-    const finalResult = totalNetProfit - totalDespesas;
++    
++    const totalOther = otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0);
++    const finalResult = totalNetProfit - totalDespesas + totalOther;
  
      return {
        productRows,
        totalRevenue,
-       totalCost,
-       totalTax,
-       totalNetProfit,
--      totalFixed,
-+      totalFixed: totalDespesas,
-       finalResult
+       totalIngredientsCost,
+       totalTaxesPaid,
+       totalNetProfit, // Net profit from products (contribution margin in R$)
+       totalFixed: totalDespesas,
++      totalOther,
+       finalResult, // Bottom-line cash left
+       totalQty
      };
--  }, [products, taxes, fixedCosts, activeTaxPercentage]);
-+  }, [products, taxes, fixedCosts, variableCosts, activeTaxPercentage]);
- 
-   // 2. Calculations for "Por Dia" (Daily view)
+-  }, [products, taxes, fixedCosts, variableCosts, activeTaxPercentage]);
++  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxPercentage]);

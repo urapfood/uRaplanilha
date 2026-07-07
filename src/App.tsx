@@ -30,6 +30,7 @@ import {
   Tax, 
   FixedCost, 
   VariableCost,
+  OtherRevenue,
   Recipe,
   Sale,
   SupplierItem,
@@ -43,6 +44,7 @@ import {
   subscribeToTaxes, saveTax, deleteTax,
   subscribeToFixedCosts, saveFixedCost, deleteFixedCost,
   subscribeToVariableCosts, saveVariableCost, deleteVariableCost,
+  subscribeToOtherRevenues, saveOtherRevenue, deleteOtherRevenue,
   subscribeToRecipes, saveRecipe, deleteRecipe,
   subscribeToSales, saveSale, deleteSale,
   subscribeToSuppliers, saveSupplier, deleteSupplier,
@@ -67,6 +69,7 @@ export default function App() {
   const [taxes, setTaxesState] = useState<Tax[]>([]);
   const [fixedCosts, setFixedCostsState] = useState<FixedCost[]>([]);
   const [variableCosts, setVariableCostsState] = useState<VariableCost[]>([]);
+  const [otherRevenues, setOtherRevenuesState] = useState<OtherRevenue[]>([]);
   const [recipes, setRecipesState] = useState<Recipe[]>([]);
   const [sales, setSalesState] = useState<Sale[]>([]);
   const [suppliers, setSuppliersState] = useState<SupplierItem[]>([]);
@@ -98,6 +101,7 @@ export default function App() {
       setTaxesState([]);
       setFixedCostsState([]);
       setVariableCostsState([]);
+      setOtherRevenuesState([]);
       setRecipesState([]);
       setSalesState([]);
       setLoading(false);
@@ -131,6 +135,10 @@ export default function App() {
       setVariableCostsState(data);
       checkLoading();
     });
+    const unsubRevenues = subscribeToOtherRevenues(userId, (data) => {
+      setOtherRevenuesState(data);
+      checkLoading();
+    });
     const unsubRecipes = subscribeToRecipes(userId, (data) => {
       setRecipesState(data);
       checkLoading();
@@ -154,6 +162,7 @@ export default function App() {
       unsubTaxes();
       unsubFixed();
       unsubVarCosts();
+      unsubRevenues();
       unsubRecipes();
       unsubSales();
       unsubSuppliers();
@@ -220,6 +229,10 @@ export default function App() {
     syncCollection(value, variableCosts, saveVariableCost, deleteVariableCost);
   };
 
+  const setOtherRevenues = (value: React.SetStateAction<OtherRevenue[]>) => {
+    syncCollection(value, otherRevenues, saveOtherRevenue, deleteOtherRevenue);
+  };
+
   const setRecipes = (value: React.SetStateAction<Recipe[]>) => {
     syncCollection(value, recipes, saveRecipe, deleteRecipe);
   };
@@ -263,6 +276,7 @@ export default function App() {
         taxes,
         fixedCosts,
         variableCosts,
+        otherRevenues,
         recipes,
       };
 
@@ -348,6 +362,7 @@ export default function App() {
         if (parsed.taxes && Array.isArray(parsed.taxes)) setTaxes(parsed.taxes);
         if (parsed.fixedCosts && Array.isArray(parsed.fixedCosts)) setFixedCosts(parsed.fixedCosts);
         if (parsed.variableCosts && Array.isArray(parsed.variableCosts)) setVariableCosts(parsed.variableCosts);
+        if (parsed.otherRevenues && Array.isArray(parsed.otherRevenues)) setOtherRevenues(parsed.otherRevenues);
         if (parsed.recipes && Array.isArray(parsed.recipes)) {
           setRecipes(parsed.recipes);
         } else {
@@ -487,7 +502,7 @@ export default function App() {
             id="tab-btn-custos"
           >
             <Briefcase className="w-4 h-4" />
-            <span>Custos Fixos</span>
+            <span>Planilha Completa</span>
           </button>
 
           {/* Simulator Tab */}
@@ -573,7 +588,7 @@ export default function App() {
           ) : (
             <>
               {activeTab === 'dashboard' && (
-                <Dashboard products={products} taxes={taxes} fixedCosts={fixedCosts} variableCosts={variableCosts} sales={sales} />
+                <Dashboard products={products} taxes={taxes} fixedCosts={fixedCosts} variableCosts={variableCosts} otherRevenues={otherRevenues} sales={sales} />
               )}
               {activeTab === 'pdv' && (
                 <div className="space-y-6">
@@ -596,6 +611,8 @@ export default function App() {
                   setFixedCosts={setFixedCosts} 
                   variableCosts={variableCosts}
                   setVariableCosts={setVariableCosts}
+                  otherRevenues={otherRevenues}
+                  setOtherRevenues={setOtherRevenues}
                 />
               )}
               {activeTab === 'simulador' && (
@@ -605,6 +622,7 @@ export default function App() {
                   taxes={taxes} 
                   fixedCosts={fixedCosts} 
                   variableCosts={variableCosts}
+                  otherRevenues={otherRevenues}
                 />
               )}
               {activeTab === 'relatorios' && (
@@ -613,6 +631,7 @@ export default function App() {
                   taxes={taxes} 
                   fixedCosts={fixedCosts} 
                   variableCosts={variableCosts}
+                  otherRevenues={otherRevenues}
                 />
               )}
               {activeTab === 'receitas' && (

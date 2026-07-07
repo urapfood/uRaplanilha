@@ -8,7 +8,7 @@ import {
   HelpCircle,
   Info
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost } from '../types';
+import { Product, Tax, FixedCost, VariableCost, OtherRevenue } from '../types';
 import { 
   calculateProductMetrics, 
   formatCurrency, 
@@ -21,6 +21,7 @@ interface SimulatorTabProps {
   taxes: Tax[];
   fixedCosts: FixedCost[];
   variableCosts: VariableCost[];
+  otherRevenues: OtherRevenue[];
 }
 
 export default function SimulatorTab({
@@ -28,7 +29,8 @@ export default function SimulatorTab({
   setProducts,
   taxes,
   fixedCosts,
-  variableCosts
+  variableCosts,
+  otherRevenues
 }: SimulatorTabProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
@@ -39,6 +41,10 @@ export default function SimulatorTab({
   const totalVariableCosts = useMemo(() => {
     return variableCosts.reduce((sum, vc) => sum + vc.monthlyValue, 0);
   }, [variableCosts]);
+
+  const totalOtherRevenues = useMemo(() => {
+    return otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0);
+  }, [otherRevenues]);
 
   const totalDespesas = totalFixedCosts + totalVariableCosts;
 
@@ -72,7 +78,7 @@ export default function SimulatorTab({
       };
     });
 
-    const netResult = totalNetProfit - totalDespesas;
+    const netResult = totalNetProfit - totalDespesas + totalOtherRevenues;
     
     return {
       totalRevenue,
@@ -81,7 +87,7 @@ export default function SimulatorTab({
       netResult,
       rows: rowDetails,
     };
-  }, [products, activeTaxRate, totalDespesas]);
+  }, [products, activeTaxRate, totalDespesas, totalOtherRevenues]);
 
   const handleUpdateQty = (id: string, qtyValue: number) => {
     const qty = isNaN(qtyValue) || qtyValue < 0 ? 0 : Math.round(qtyValue);
@@ -106,7 +112,7 @@ export default function SimulatorTab({
     <div className="space-y-6 animate-fade-in">
       
       {/* 1. Simulation Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Card 1: Faturamento total do simulador */}
         <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
@@ -150,6 +156,21 @@ export default function SimulatorTab({
           </div>
           <span className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 mt-1 break-words block">
             {formatCurrency(totalDespesas)}
+          </span>
+        </div>
+
+        {/* Card Extra: Outras Receitas */}
+        <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center space-x-2.5 mb-3">
+            <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+              <DollarSign className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              Receitas Extras
+            </span>
+          </div>
+          <span className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 dark:text-emerald-400 mt-1 break-words block">
+            {formatCurrency(totalOtherRevenues)}
           </span>
         </div>
 

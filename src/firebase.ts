@@ -10,7 +10,7 @@ import {
   getDocs,
   writeBatch
 } from 'firebase/firestore';
-import { Product, Tax, FixedCost, Recipe, Sale, SupplierItem, VariableCost } from './types';
+import { Product, Tax, FixedCost, Recipe, Sale, SupplierItem, VariableCost, OtherRevenue } from './types';
 
 // Config retrieved from firebase-applet-config.json
 const firebaseConfig = {
@@ -239,6 +239,46 @@ export async function deleteVariableCost(userId: string, variableCostId: string)
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `users/${userId}/variableCosts/${variableCostId}`);
+  }
+}
+
+/**
+ * Sync other revenues in real-time from Firestore for a specific user
+ */
+export function subscribeToOtherRevenues(userId: string, callback: (revenues: OtherRevenue[]) => void) {
+  const colRef = collection(db, 'users', userId, 'otherRevenues');
+  return onSnapshot(colRef, (snapshot) => {
+    const revenues: OtherRevenue[] = [];
+    snapshot.forEach((doc) => {
+      revenues.push({ id: doc.id, ...doc.data() } as OtherRevenue);
+    });
+    callback(revenues);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, `users/${userId}/otherRevenues`);
+  });
+}
+
+/**
+ * Save or update other revenue in Firestore for a specific user
+ */
+export async function saveOtherRevenue(userId: string, revenue: OtherRevenue) {
+  try {
+    const docRef = doc(db, 'users', userId, 'otherRevenues', revenue.id);
+    await setDoc(docRef, revenue);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/otherRevenues/${revenue.id}`);
+  }
+}
+
+/**
+ * Delete other revenue from Firestore for a specific user
+ */
+export async function deleteOtherRevenue(userId: string, revenueId: string) {
+  try {
+    const docRef = doc(db, 'users', userId, 'otherRevenues', revenueId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/otherRevenues/${revenueId}`);
   }
 }
 

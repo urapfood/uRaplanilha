@@ -17,7 +17,7 @@ import {
   PieChart as PieIcon,
   HelpCircle
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost } from '../types';
+import { Product, Tax, FixedCost, VariableCost, OtherRevenue } from '../types';
 import { formatCurrency, formatPercent, getActiveTaxPercentage, calculateProductMetrics } from '../utils';
 import { 
   BarChart, 
@@ -37,9 +37,10 @@ interface ReportsTabProps {
   taxes: Tax[];
   fixedCosts: FixedCost[];
   variableCosts: VariableCost[];
+  otherRevenues: OtherRevenue[];
 }
 
-export default function ReportsTab({ products, taxes, fixedCosts, variableCosts }: ReportsTabProps) {
+export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues }: ReportsTabProps) {
   // Sub-tabs: 'dia' | 'semana' | 'mes'
   const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
   
@@ -87,7 +88,9 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
     const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
     const totalVariable = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
     const totalDespesas = totalFixed + totalVariable;
-    const finalResult = totalNetProfit - totalDespesas;
+    
+    const totalOther = otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0);
+    const finalResult = totalNetProfit - totalDespesas + totalOther;
 
     return {
       productRows,
@@ -96,10 +99,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
       totalTaxesPaid,
       totalNetProfit, // Net profit from products (contribution margin in R$)
       totalFixed: totalDespesas,
+      totalOther,
       finalResult, // Bottom-line cash left
       totalQty
     };
-  }, [products, taxes, fixedCosts, variableCosts, activeTaxPercentage]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxPercentage]);
 
   // 2. Calculations for "Por Dia" (Daily view)
   const dailyMetrics = useMemo(() => {
@@ -111,6 +115,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
       taxes: monthlyMetrics.totalTaxesPaid / days,
       productNetProfit: monthlyMetrics.totalNetProfit / days,
       fixedCost: monthlyMetrics.totalFixed / days,
+      otherRevenues: monthlyMetrics.totalOther / days,
       finalResult: monthlyMetrics.finalResult / days,
       qty: monthlyMetrics.totalQty / days
     };
@@ -164,6 +169,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
       taxes: monthlyMetrics.totalTaxesPaid / 4.33,
       productNetProfit: monthlyMetrics.totalNetProfit / 4.33,
       fixedCost: monthlyMetrics.totalFixed / 4.33,
+      otherRevenues: monthlyMetrics.totalOther / 4.33,
       finalResult: monthlyMetrics.finalResult / 4.33,
       qty: monthlyMetrics.totalQty / 4.33
     };
@@ -338,7 +344,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
         <div className="space-y-6 animate-fade-in">
           
           {/* Daily Metrics Row - Full values shown explicitly */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             
             {/* Card 1: Faturamento Diário */}
             <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
@@ -397,6 +403,26 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
               </div>
               <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
                 Divisão linear das despesas fixas
+              </p>
+            </div>
+
+            {/* Card Extra: Receitas Extras Diário */}
+            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Receitas Extras / Dia
+                  </p>
+                </div>
+                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
+                  {formatCurrency(dailyMetrics.otherRevenues)}
+                </h4>
+              </div>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Fração das receitas fora do iFood
               </p>
             </div>
 
@@ -546,7 +572,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
         <div className="space-y-6 animate-fade-in">
           
           {/* Weekly Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             
             {/* Card 1: Faturamento Semanal */}
             <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
@@ -632,6 +658,24 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
                     ? 'text-emerald-600 dark:text-emerald-400' 
                     : 'text-rose-600 dark:text-rose-400'
                 }`}>
+            <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-2.5 mb-3">
+                  <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-100 dark:border-emerald-800/50">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Receitas Extras / Sem
+                  </p>
+                </div>
+                <h4 className="text-xl sm:text-2xl font-bold tech-font-mono font-mono text-emerald-600 break-words">
+                  {formatCurrency(weeklyMetrics.otherRevenues)}
+                </h4>
+              </div>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
+                Fração das receitas fora do iFood
+              </p>
+            </div>
                   {formatCurrency(weeklyMetrics.finalResult)}
                 </h4>
               </div>
@@ -746,7 +790,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts 
         <div className="space-y-6 animate-fade-in">
           
           {/* Monthly metrics dashboard */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             
             <div className="bg-white dark:bg-zinc-800 p-5 rounded-lg border border-zinc-200/60 dark:border-zinc-700 shadow-sm flex flex-col justify-between">
               <div>
