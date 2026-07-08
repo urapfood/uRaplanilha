@@ -2,6 +2,8 @@ export interface Ingredient {
   id: string;
   name: string;
   cost: number;
+  supplierItemId?: string; // Link to SupplierItem
+  quantityUsed?: number;   // Quantity used (e.g., 0.150 for 150g or 2 for 2 units)
 }
 
 export interface SupplierItem {
@@ -20,6 +22,8 @@ export interface Product {
   costType: 'single' | 'detailed';
   singleCost: number;
   packagingCost?: number; // New field for packaging cost
+  packagingSupplierItemId?: string; // Link to SupplierItem for packaging
+  packagingQuantityUsed?: number;   // Quantity of packaging used (usually 1)
   ingredients: Ingredient[];
   estimatedSales: number;
   notes?: string;

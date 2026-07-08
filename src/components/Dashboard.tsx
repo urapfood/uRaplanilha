@@ -8,7 +8,7 @@ import {
   PieChart, 
   AlertCircle 
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost, Sale, OtherRevenue } from '../types';
+import { Product, Tax, FixedCost, VariableCost, Sale, OtherRevenue, SupplierItem } from '../types';
 import { 
   calculateProductMetrics, 
   formatCurrency, 
@@ -35,9 +35,10 @@ interface DashboardProps {
   variableCosts: VariableCost[];
   otherRevenues: OtherRevenue[];
   sales?: Sale[];
+  suppliers?: SupplierItem[];
 }
 
-export default function Dashboard({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [] }: DashboardProps) {
+export default function Dashboard({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [], suppliers = [] }: DashboardProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   // Compute stats
@@ -54,7 +55,7 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
     }
 
     const calculatedProducts = products.map((product) => {
-      const metrics = calculateProductMetrics(product, activeTaxRate);
+      const metrics = calculateProductMetrics(product, activeTaxRate, suppliers);
       const monthlyProductRevenue = product.sellingPrice * (product.estimatedSales || 0);
       const monthlyProductNetProfit = metrics.netProfit * (product.estimatedSales || 0);
 
@@ -116,12 +117,12 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
       totalOtherRevenues,
       finalMonthlyResult,
     };
-  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxRate, sales]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, activeTaxRate, sales, suppliers]);
 
   // Chart data preparation
   const chartData = useMemo(() => {
     return products.map((product) => {
-      const metrics = calculateProductMetrics(product, activeTaxRate);
+      const metrics = calculateProductMetrics(product, activeTaxRate, suppliers);
       return {
         name: product.name.length > 18 ? product.name.substring(0, 15) + '...' : product.name,
         'Lucro Líquido Unitário': Number(metrics.netProfit.toFixed(2)),
@@ -130,7 +131,7 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
         margin: metrics.margin,
       };
     });
-  }, [products, activeTaxRate]);
+  }, [products, activeTaxRate, suppliers]);
 
   // Theme helper for chart text
   const isDark = document.documentElement.classList.contains('dark');

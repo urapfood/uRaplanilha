@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Fredoka", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-serif: "Georgia", Georgia, serif;
-  --font-mono: "Courier New", Courier, monospace;
+  --font-mono: "Fredoka", "JetBrains Mono", "Courier New", Courier, monospace;
   
   --color-brand-tomato: #E24B4A;
   --color-brand-orange: #F2A93B;

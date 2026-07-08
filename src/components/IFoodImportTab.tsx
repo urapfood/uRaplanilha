@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Product } from '../types';
+import loaderImage from '../assets/images/ifood_import_loader_1783508448729.jpg';
 
 // Dynamically load PDF.js from CDN to avoid bundle worker compilation issues in Vite
 const loadPdfJs = (): Promise<any> => {
@@ -559,12 +560,18 @@ export default function IFoodImportTab({ products, setProducts, showToast }: IFo
                   />
                   {isReadingPdf ? (
                     <div className="flex flex-col items-center justify-center space-y-4 py-6">
-                      <div className="p-4 bg-brand-tomato/10 text-brand-tomato rounded-full animate-spin">
-                        <Loader2 className="w-10 h-10" />
+                      <img 
+                        src={loaderImage} 
+                        alt="Processando relatório iFood" 
+                        className="w-32 h-32 object-cover rounded-xl shadow-xs border border-zinc-100 dark:border-zinc-800 animate-pulse mb-2"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-5 h-5 text-brand-tomato animate-spin" />
+                        <h3 className="text-base font-extrabold text-zinc-800 dark:text-zinc-200 tracking-tight">
+                          Lendo e Extraindo Dados...
+                        </h3>
                       </div>
-                      <h3 className="text-base font-extrabold text-zinc-800 dark:text-zinc-200 tracking-tight">
-                        Lendo e Extraindo Dados do PDF...
-                      </h3>
                       <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs leading-relaxed">
                         Analisando estrutura de vendas do relatório do iFood. Isso pode levar alguns segundos.
                       </p>

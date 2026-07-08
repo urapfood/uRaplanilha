@@ -13,11 +13,12 @@ import {
   Package, 
   BarChart3, 
   Award,
+  ChevronLeft,
   ChevronRight,
   PieChart as PieIcon,
   HelpCircle
 } from 'lucide-react';
-import { Product, Tax, FixedCost, VariableCost, OtherRevenue, Sale } from '../types';
+import { Product, Tax, FixedCost, VariableCost, OtherRevenue, Sale, SupplierItem } from '../types';
 import { formatCurrency, formatPercent, getActiveTaxPercentage, calculateProductMetrics } from '../utils';
 import { 
   BarChart, 
@@ -39,16 +40,171 @@ interface ReportsTabProps {
   variableCosts: VariableCost[];
   otherRevenues: OtherRevenue[];
   sales?: Sale[];
+  suppliers?: SupplierItem[];
 }
 
-export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [] }: ReportsTabProps) {
+export default function ReportsTab({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [], suppliers = [] }: ReportsTabProps) {
   // Sub-tabs: 'dia' | 'semana' | 'mes'
-  const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('dia');
+  const [reportSubTab, setReportSubTab] = useState<'dia' | 'semana' | 'mes'>('mes'); // default to Month view for holistic entry
   
-  // Customization state for Daily view: operational days per month
-  const [operationalDays, setOperationalDays] = useState<number>(26); // Default 26 days (closed on Mondays, for example)
+  // 'real' or 'simulado'
+  const [dataSource, setDataSource] = useState<'real' | 'simulado'>('real');
 
-  // 1. Core calculations (Monthly level)
+  // Selected specific day YYYY-MM-DD
+  const [selectedDay, setSelectedDay] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
+  // Selected specific week-day YYYY-MM-DD (any day in the target week)
+  const [selectedWeekDay, setSelectedWeekDay] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
+  // Selected specific month YYYY-MM
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  });
+
+  // Calculate the week range (Monday to Sunday) for the selected week day
+  const weekRange = useMemo(() => {
+    const d = new Date(selectedWeekDay + 'T12:00:00');
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const format = (dt: Date) => {
+      const year = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const r = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${m}-${r}`;
+    };
+    
+    return {
+      start: format(monday),
+      end: format(sunday)
+    };
+  }, [selectedWeekDay]);
+
+  // Helper to format date into DD/MM/YYYY
+  const formatBrazilianDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // Helper to change periods back and forth
+  const handlePrevPeriod = () => {
+    if (reportSubTab === 'dia') {
+      const d = new Date(selectedDay + 'T12:00:00');
+      d.setDate(d.getDate() - 1);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setSelectedDay(`${year}-${month}-${day}`);
+    } else if (reportSubTab === 'semana') {
+      const d = new Date(selectedWeekDay + 'T12:00:00');
+      d.setDate(d.getDate() - 7);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setSelectedWeekDay(`${year}-${month}-${day}`);
+    } else {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const d = new Date(year, month - 2, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      setSelectedMonth(`${y}-${m}`);
+    }
+  };
+
+  const handleNextPeriod = () => {
+    if (reportSubTab === 'dia') {
+      const d = new Date(selectedDay + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setSelectedDay(`${year}-${month}-${day}`);
+    } else if (reportSubTab === 'semana') {
+      const d = new Date(selectedWeekDay + 'T12:00:00');
+      d.setDate(d.getDate() + 7);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setSelectedWeekDay(`${year}-${month}-${day}`);
+    } else {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const d = new Date(year, month, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      setSelectedMonth(`${y}-${m}`);
+    }
+  };
+
+  // Filter actual sales that fall into the selected period range
+  const periodSales = useMemo(() => {
+    if (dataSource === 'simulado') {
+      return [];
+    }
+    if (reportSubTab === 'dia') {
+      return sales.filter(s => s.date.startsWith(selectedDay));
+    } else if (reportSubTab === 'semana') {
+      return sales.filter(s => {
+        const dPart = s.date.substring(0, 10);
+        return dPart >= weekRange.start && dPart <= weekRange.end;
+      });
+    } else {
+      return sales.filter(s => s.date.startsWith(selectedMonth));
+    }
+  }, [sales, dataSource, reportSubTab, selectedDay, weekRange, selectedMonth]);
+
+  // Calculate days that actually had sales in the selected month
+  const activeDaysInMonth = useMemo(() => {
+    const dates = new Set<string>();
+    sales.forEach(s => {
+      if (s.date.startsWith(selectedMonth)) {
+        const hasRealSales = s.totalAmount > 0 || (s.items && s.items.some(item => item.quantity > 0));
+        if (hasRealSales) {
+          dates.add(s.date.substring(0, 10));
+        }
+      }
+    });
+    return Array.from(dates).sort();
+  }, [sales, selectedMonth]);
+
+  // Keep track of user-defined operational days
+  const [customOperationalDays, setCustomOperationalDays] = useState<number | null>(null);
+
+  const effectiveDays = useMemo(() => {
+    if (customOperationalDays !== null) {
+      return customOperationalDays;
+    }
+    if (dataSource === 'real') {
+      return Math.max(1, activeDaysInMonth.length);
+    }
+    return 26; // Default simulated operational days
+  }, [customOperationalDays, dataSource, activeDaysInMonth]);
+
+  // Filter sales of the selected month for real calculations (reference month for charts)
+  const monthlyRealSales = useMemo(() => {
+    return sales.filter(s => s.date.startsWith(selectedMonth));
+  }, [sales, selectedMonth]);
+
+  // Core calculations (Monthly level / projections reference)
   const activeTaxPercentage = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   const monthlyMetrics = useMemo(() => {
@@ -58,13 +214,47 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
     let totalNetProfit = 0;
     let totalQty = 0;
 
+    const productRealSalesQty: { [id: string]: number } = {};
+    const productRealRevenue: { [id: string]: number } = {};
+    const productRealCost: { [id: string]: number } = {};
+    const productRealNetProfit: { [id: string]: number } = {};
+    const productRealTaxes: { [id: string]: number } = {};
+
+    if (dataSource === 'real') {
+      monthlyRealSales.forEach(s => {
+        s.items.forEach(item => {
+          productRealSalesQty[item.productId] = (productRealSalesQty[item.productId] || 0) + item.quantity;
+          productRealRevenue[item.productId] = (productRealRevenue[item.productId] || 0) + item.totalPrice;
+          productRealCost[item.productId] = (productRealCost[item.productId] || 0) + (item.unitCost * item.quantity);
+          const itemTax = (item.totalPrice * activeTaxPercentage) / 100;
+          productRealTaxes[item.productId] = (productRealTaxes[item.productId] || 0) + itemTax;
+          productRealNetProfit[item.productId] = (productRealNetProfit[item.productId] || 0) + (item.totalPrice - (item.unitCost * item.quantity) - itemTax);
+        });
+      });
+    }
+
     const productRows = products.map((product) => {
-      const metrics = calculateProductMetrics(product, activeTaxPercentage);
-      const qty = product.estimatedSales || 0;
-      const revenue = product.sellingPrice * qty;
-      const ingredientsCost = metrics.cost * qty;
-      const taxesPaid = metrics.taxValue * qty;
-      const netProfit = metrics.netProfit * qty;
+      const metrics = calculateProductMetrics(product, activeTaxPercentage, suppliers);
+      
+      let qty = 0;
+      let revenue = 0;
+      let ingredientsCost = 0;
+      let taxesPaid = 0;
+      let netProfit = 0;
+
+      if (dataSource === 'real') {
+        qty = productRealSalesQty[product.id] || 0;
+        revenue = productRealRevenue[product.id] || 0;
+        ingredientsCost = productRealCost[product.id] || 0;
+        taxesPaid = productRealTaxes[product.id] || 0;
+        netProfit = productRealNetProfit[product.id] || 0;
+      } else {
+        qty = product.estimatedSales || 0;
+        revenue = product.sellingPrice * qty;
+        ingredientsCost = metrics.cost * qty;
+        taxesPaid = metrics.taxValue * qty;
+        netProfit = metrics.netProfit * qty;
+      }
 
       totalRevenue += revenue;
       totalIngredientsCost += ingredientsCost;
@@ -90,18 +280,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
     const totalVariableSpreadsheet = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0);
     const totalDespesas = totalFixed + totalVariableSpreadsheet;
     
-    // Include real PDV sales in totals
-    const pdvRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-    const pdvNetProfit = sales.reduce((sum, s) => sum + s.netProfit, 0);
-    const pdvIngredientsCost = sales.reduce((sum, s) => sum + s.totalCost, 0);
-    const pdvTaxes = sales.reduce((sum, s) => sum + s.taxesAmount, 0);
-    const pdvQty = sales.reduce((sum, s) => sum + s.items.reduce((acc, item) => acc + item.quantity, 0), 0);
-
-    const combinedRevenue = totalRevenue + pdvRevenue;
-    const combinedNetProfit = totalNetProfit + pdvNetProfit;
-    const combinedIngredientsCost = totalIngredientsCost + pdvIngredientsCost;
-    const combinedTaxes = totalTaxesPaid + pdvTaxes;
-    const combinedQty = totalQty + pdvQty;
+    const combinedRevenue = totalRevenue;
+    const combinedNetProfit = totalNetProfit;
+    const combinedIngredientsCost = totalIngredientsCost;
+    const combinedTaxes = totalTaxesPaid;
+    const combinedQty = totalQty;
 
     const totalOther = otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0);
     const finalResult = combinedNetProfit - totalDespesas + totalOther;
@@ -111,89 +294,182 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
       totalRevenue: combinedRevenue,
       totalIngredientsCost: combinedIngredientsCost,
       totalTaxesPaid: combinedTaxes,
-      totalNetProfit: combinedNetProfit, // Net profit from products (contribution margin in R$)
+      totalNetProfit: combinedNetProfit,
       totalFixed,
       totalVariableSpreadsheet,
       totalDespesas,
       totalOther,
-      finalResult, // Bottom-line cash left
+      finalResult,
       totalQty: combinedQty,
-      pdvRevenue,
-      pdvNetProfit,
-      simulatedRevenue: totalRevenue,
-      simulatedNetProfit: totalNetProfit
+      pdvRevenue: dataSource === 'real' ? combinedRevenue : 0,
+      pdvNetProfit: dataSource === 'real' ? combinedNetProfit : 0,
+      simulatedRevenue: dataSource === 'simulado' ? combinedRevenue : 0,
+      simulatedNetProfit: dataSource === 'simulado' ? combinedNetProfit : 0
     };
-  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, sales, activeTaxPercentage]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, dataSource, monthlyRealSales, activeTaxPercentage, suppliers]);
 
-  // 2. Calculations for "Por Dia" (Daily view)
-  const dailyMetrics = useMemo(() => {
-    const days = Math.max(1, Math.min(31, operationalDays));
-    
-    return {
-      revenue: monthlyMetrics.totalRevenue / days,
-      ingredientsCost: monthlyMetrics.totalIngredientsCost / days,
-      taxes: monthlyMetrics.totalTaxesPaid / days,
-      productNetProfit: monthlyMetrics.totalNetProfit / days,
-      fixedCost: monthlyMetrics.totalFixed / days,
-      otherRevenues: monthlyMetrics.totalOther / days,
-      finalResult: monthlyMetrics.finalResult / days,
-      qty: monthlyMetrics.totalQty / days
-    };
-  }, [monthlyMetrics, operationalDays]);
+  // Unified calculations for the SELECTED period (Day, Week, or Month)
+  const periodMetrics = useMemo(() => {
+    let totalRevenue = 0;
+    let totalIngredientsCost = 0;
+    let totalTaxesPaid = 0;
+    let totalNetProfit = 0;
+    let totalQty = 0;
 
-  // Projected typical week weightings (normalization factors)
-  // Delivery business typical distribution: Friday & Saturday are peaks, Mon/Tue are quiet.
-  const WEEKDAY_WEIGHTS = [
-    { name: 'Segunda', weight: 0.5, label: 'Seg' },
-    { name: 'Terça', weight: 0.6, label: 'Ter' },
-    { name: 'Quarta', weight: 0.8, label: 'Qua' },
-    { name: 'Quinta', weight: 0.9, label: 'Qui' },
-    { name: 'Sexta', weight: 1.5, label: 'Sex' },
-    { name: 'Sábado', weight: 1.7, label: 'Sáb' },
-    { name: 'Domingo', weight: 1.3, label: 'Dom' }
-  ];
+    const productSalesQty: { [id: string]: number } = {};
+    const productRevenue: { [id: string]: number } = {};
+    const productCost: { [id: string]: number } = {};
+    const productTaxes: { [id: string]: number } = {};
+    const productNetProfitVal: { [id: string]: number } = {};
 
-  const weekdayData = useMemo(() => {
-    const totalWeights = WEEKDAY_WEIGHTS.reduce((sum, day) => sum + day.weight, 0);
-    
-    // Monthly metrics divided by 4.33 to get average weekly metrics
-    const weeklyRevenue = monthlyMetrics.totalRevenue / 4.33;
-    const weeklyNetProfit = monthlyMetrics.totalNetProfit / 4.33;
-    const weeklyFixedCost = monthlyMetrics.totalFixed / 4.33;
+    if (dataSource === 'real') {
+      periodSales.forEach(s => {
+        s.items.forEach(item => {
+          productSalesQty[item.productId] = (productSalesQty[item.productId] || 0) + item.quantity;
+          productRevenue[item.productId] = (productRevenue[item.productId] || 0) + item.totalPrice;
+          productCost[item.productId] = (productCost[item.productId] || 0) + (item.unitCost * item.quantity);
+          const itemTax = (item.totalPrice * activeTaxPercentage) / 100;
+          productTaxes[item.productId] = (productTaxes[item.productId] || 0) + itemTax;
+          productNetProfitVal[item.productId] = (productNetProfitVal[item.productId] || 0) + (item.totalPrice - (item.unitCost * item.quantity) - itemTax);
+        });
+      });
+    }
 
-    return WEEKDAY_WEIGHTS.map(day => {
-      const dayFactor = day.weight / totalWeights;
-      const dayRevenue = weeklyRevenue * dayFactor * 7; // relative to their proportion of average day
-      const dayNetProfit = weeklyNetProfit * dayFactor * 7;
-      // Fixed costs are evenly distributed daily, they don't fluctuate with sales volume
-      const dayFixedCost = weeklyFixedCost / 7;
-      const daySobra = dayNetProfit - dayFixedCost;
+    const productRows = products.map((product) => {
+      const metrics = calculateProductMetrics(product, activeTaxPercentage, suppliers);
+      
+      let qty = 0;
+      let revenue = 0;
+      let ingredientsCost = 0;
+      let taxesPaid = 0;
+      let netProfit = 0;
+
+      if (dataSource === 'real') {
+        qty = productSalesQty[product.id] || 0;
+        revenue = productRevenue[product.id] || 0;
+        ingredientsCost = productCost[product.id] || 0;
+        taxesPaid = productTaxes[product.id] || 0;
+        netProfit = productNetProfitVal[product.id] || 0;
+      } else {
+        // Analytical / Simulated projections
+        let scalingFactor = 1;
+        if (reportSubTab === 'dia') {
+          scalingFactor = 1 / 26; // Simulated typical day
+        } else if (reportSubTab === 'semana') {
+          scalingFactor = 1 / 4.33; // Simulated typical week
+        } else {
+          scalingFactor = 1; // Full month
+        }
+        qty = (product.estimatedSales || 0) * scalingFactor;
+        revenue = product.sellingPrice * qty;
+        ingredientsCost = metrics.cost * qty;
+        taxesPaid = metrics.taxValue * qty;
+        netProfit = metrics.netProfit * qty;
+      }
+
+      totalRevenue += revenue;
+      totalIngredientsCost += ingredientsCost;
+      totalTaxesPaid += taxesPaid;
+      totalNetProfit += netProfit;
+      totalQty += qty;
 
       return {
-        name: day.name,
-        label: day.label,
-        'Faturamento': Number(dayRevenue.toFixed(2)),
-        'Lucro Líquido': Number(dayNetProfit.toFixed(2)),
-        'Custos Fixos': Number(dayFixedCost.toFixed(2)),
-        'Sobra Diária': Number(daySobra.toFixed(2))
+        id: product.id,
+        name: product.name,
+        category: product.category || 'Outros',
+        qty,
+        revenue,
+        ingredientsCost,
+        taxesPaid,
+        netProfit,
+        unitNetProfit: metrics.netProfit,
+        margin: metrics.margin
       };
     });
-  }, [monthlyMetrics]);
 
-  // 3. Calculations for "Por Semana" (Weekly view)
-  const weeklyMetrics = useMemo(() => {
-    // 1 month = 4.33 weeks on average
+    // Proportionalize expenses based on period type
+    let scalingFactor = 1;
+    if (reportSubTab === 'dia') {
+      scalingFactor = 1 / 30; // 1 day out of 30
+    } else if (reportSubTab === 'semana') {
+      scalingFactor = 7 / 30; // 7 days out of 30
+    } else {
+      scalingFactor = 1; // full month
+    }
+
+    const totalFixed = fixedCosts.reduce((sum, item) => sum + item.monthlyValue, 0) * scalingFactor;
+    const totalVariableSpreadsheet = variableCosts.reduce((sum, item) => sum + item.monthlyValue, 0) * scalingFactor;
+    const totalDespesas = totalFixed + totalVariableSpreadsheet;
+    const totalOther = otherRevenues.reduce((sum, item) => sum + item.monthlyValue, 0) * scalingFactor;
+    
+    const finalResult = totalNetProfit - totalDespesas + totalOther;
+
     return {
-      revenue: monthlyMetrics.totalRevenue / 4.33,
-      ingredientsCost: monthlyMetrics.totalIngredientsCost / 4.33,
-      taxes: monthlyMetrics.totalTaxesPaid / 4.33,
-      productNetProfit: monthlyMetrics.totalNetProfit / 4.33,
-      fixedCost: monthlyMetrics.totalFixed / 4.33,
-      otherRevenues: monthlyMetrics.totalOther / 4.33,
-      finalResult: monthlyMetrics.finalResult / 4.33,
-      qty: monthlyMetrics.totalQty / 4.33
+      productRows,
+      totalRevenue,
+      totalIngredientsCost,
+      totalTaxesPaid,
+      totalNetProfit, // Product net profit sum
+      totalFixed,
+      totalVariableSpreadsheet,
+      totalDespesas,
+      totalOther,
+      finalResult, // Bottom-line sobra
+      totalQty
     };
-  }, [monthlyMetrics]);
+  }, [products, taxes, fixedCosts, variableCosts, otherRevenues, dataSource, periodSales, reportSubTab, activeTaxPercentage, suppliers]);
+
+  // Map periodMetrics straight to dailyMetrics and weeklyMetrics to keep visual cards working perfectly
+  const dailyMetrics = useMemo(() => {
+    return {
+      revenue: periodMetrics.totalRevenue,
+      ingredientsCost: periodMetrics.totalIngredientsCost,
+      taxes: periodMetrics.totalTaxesPaid,
+      productNetProfit: periodMetrics.totalNetProfit,
+      fixedCost: periodMetrics.totalFixed,
+      otherRevenues: periodMetrics.totalOther,
+      finalResult: periodMetrics.finalResult,
+      qty: periodMetrics.totalQty
+    };
+  }, [periodMetrics]);
+
+  const weeklyMetrics = useMemo(() => {
+    return {
+      revenue: periodMetrics.totalRevenue,
+      ingredientsCost: periodMetrics.totalIngredientsCost,
+      taxes: periodMetrics.totalTaxesPaid,
+      productNetProfit: periodMetrics.totalNetProfit,
+      fixedCost: periodMetrics.totalFixed,
+      otherRevenues: periodMetrics.totalOther,
+      finalResult: periodMetrics.finalResult,
+      qty: periodMetrics.totalQty
+    };
+  }, [periodMetrics]);
+
+  // Typical weekday distribution data for the Daily tab
+  const weekdayData = useMemo(() => {
+    const WEEKDAY_NAMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const WEEKDAY_MULTIPLIERS = [0.6, 0.6, 0.7, 0.8, 1.3, 1.6, 1.4]; // Averages to 1.0
+
+    const baseRevenue = dailyMetrics.revenue;
+    const baseProfit = dailyMetrics.productNetProfit;
+    const baseFixed = dailyMetrics.fixedCost + (periodMetrics.totalVariableSpreadsheet / (reportSubTab === 'dia' ? 1 : 30));
+
+    return WEEKDAY_NAMES.map((name, idx) => {
+      const mult = WEEKDAY_MULTIPLIERS[idx];
+      const rev = baseRevenue * mult;
+      const profit = baseProfit * mult;
+      const fixed = baseFixed;
+      const sobra = profit - fixed + (dailyMetrics.otherRevenues * mult);
+
+      return {
+        label: name,
+        'Faturamento': Number(rev.toFixed(2)),
+        'Lucro Líquido': Number(profit.toFixed(2)),
+        'Sobra Diária': Number(sobra.toFixed(2))
+      };
+    });
+  }, [dailyMetrics, periodMetrics, reportSubTab]);
 
   // Projected 4 Weeks of the Month chart data
   const weeklyDistributionData = useMemo(() => {
@@ -281,26 +557,19 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
 
   // DRE Period-scaled spreadsheet calculation
   const dreData = useMemo(() => {
-    let divisor = 1;
-    if (reportSubTab === 'semana') {
-      divisor = 4.33;
-    } else if (reportSubTab === 'dia') {
-      divisor = Math.max(1, operationalDays);
-    }
-
-    const productSales = monthlyMetrics.totalRevenue / divisor;
-    const otherRevenuesVal = monthlyMetrics.totalOther / divisor;
+    const productSales = periodMetrics.totalRevenue;
+    const otherRevenuesVal = periodMetrics.totalOther;
     const totalEntradas = productSales + otherRevenuesVal;
 
-    const ingredientsCost = monthlyMetrics.totalIngredientsCost / divisor;
-    const taxesPaid = monthlyMetrics.totalTaxesPaid / divisor;
-    const variableSpreadsheet = monthlyMetrics.totalVariableSpreadsheet / divisor;
+    const ingredientsCost = periodMetrics.totalIngredientsCost;
+    const taxesPaid = periodMetrics.totalTaxesPaid;
+    const variableSpreadsheet = periodMetrics.totalVariableSpreadsheet;
     const totalVariaveis = ingredientsCost + taxesPaid + variableSpreadsheet;
 
     const margemContribuicao = totalEntradas - totalVariaveis;
 
-    const fixedCostsVal = monthlyMetrics.totalFixed / divisor;
-    const sobraLiquida = margemContribuicao - fixedCostsVal;
+    const fixedCostsVal = periodMetrics.totalFixed;
+    const sobraLiquida = periodMetrics.finalResult;
 
     return {
       productSales,
@@ -314,7 +583,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
       fixedCostsVal,
       sobraLiquida
     };
-  }, [reportSubTab, operationalDays, monthlyMetrics]);
+  }, [periodMetrics]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -339,6 +608,123 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
             <BarChart3 className="w-10 h-10 text-brand-tomato" />
           </div>
         </div>
+      </div>
+
+      {/* Filtros e Controles de Origem de Dados */}
+      <div className="bg-zinc-50 dark:bg-zinc-900/60 p-4 rounded-xl border border-zinc-200 dark:border-zinc-850 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full md:w-auto">
+          <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Origem dos Dados:
+          </span>
+          <div className="flex bg-zinc-200/50 dark:bg-zinc-800 p-1 rounded-lg border border-zinc-300/40 dark:border-zinc-700 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                setDataSource('real');
+                setCustomOperationalDays(null);
+              }}
+              className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                dataSource === 'real'
+                  ? 'bg-brand-tomato text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Vendas Reais Lançadas</span>
+            </button>
+            <button
+              onClick={() => {
+                setDataSource('simulado');
+                setCustomOperationalDays(null);
+              }}
+              className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                dataSource === 'simulado'
+                  ? 'bg-brand-tomato text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Metas / Projeções</span>
+            </button>
+          </div>
+        </div>
+
+        {dataSource === 'real' && (
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            {reportSubTab === 'dia' && (
+              <>
+                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Dia de Análise:
+                </span>
+                <div className="flex items-center space-x-1.5">
+                  <button onClick={handlePrevPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                    <ChevronLeft className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                  </button>
+                  <input
+                    type="date"
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value)}
+                    className="px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-zinc-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato font-mono"
+                  />
+                  <button onClick={handleNextPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {reportSubTab === 'semana' && (
+              <>
+                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Semana de Análise:
+                </span>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2.5 py-1 rounded-md border border-emerald-150 dark:border-emerald-900/40 font-mono">
+                    {formatBrazilianDate(weekRange.start)} a {formatBrazilianDate(weekRange.end)}
+                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    <button onClick={handlePrevPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                      <ChevronLeft className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                    </button>
+                    <input
+                      type="date"
+                      value={selectedWeekDay}
+                      onChange={(e) => setSelectedWeekDay(e.target.value)}
+                      className="px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-zinc-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato font-mono"
+                    />
+                    <button onClick={handleNextPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200/70 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {reportSubTab === 'mes' && (
+              <>
+                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Mês de Análise:
+                </span>
+                <div className="flex items-center space-x-1.5">
+                  <button onClick={handlePrevPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                    <ChevronLeft className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                  </button>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(e.target.value);
+                      setCustomOperationalDays(null);
+                    }}
+                    className="px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs font-bold text-zinc-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato font-mono"
+                  />
+                  <button onClick={handleNextPeriod} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition cursor-pointer bg-white dark:bg-zinc-850">
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Sub-Navigation Tabs for Report Period */}
@@ -388,10 +774,15 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
               type="number"
               min="1"
               max="31"
-              value={operationalDays}
-              onChange={(e) => setOperationalDays(Math.max(1, Math.min(31, Number(e.target.value))))}
+              value={effectiveDays}
+              onChange={(e) => setCustomOperationalDays(Math.max(1, Math.min(31, Number(e.target.value))))}
               className="w-14 px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md text-xs font-bold text-center text-zinc-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato font-mono"
             />
+            {dataSource === 'real' && customOperationalDays === null && (
+              <span className="text-[10px] text-emerald-500 font-medium whitespace-nowrap">
+                (automático: {activeDaysInMonth.length} dia{activeDaysInMonth.length !== 1 ? 's' : ''} ativo{activeDaysInMonth.length !== 1 ? 's' : ''})
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -418,8 +809,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.revenue)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Simulado ({operationalDays} dias)
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Dia: ${formatBrazilianDate(selectedDay)}` : `Simulado (${effectiveDays} dias)`}
               </p>
             </div>
 
@@ -438,8 +829,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.productNetProfit)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Vendas - CMV e Taxas
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Dia: ${formatBrazilianDate(selectedDay)}` : 'Faturamento - CMV e Taxas'}
               </p>
             </div>
 
@@ -458,8 +849,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.otherRevenues)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Receitas da Planilha
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Dia: ${formatBrazilianDate(selectedDay)}` : 'Receitas da Planilha'}
               </p>
             </div>
 
@@ -478,8 +869,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.fixedCost)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Aluguel, salários, etc.
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Dia: ${formatBrazilianDate(selectedDay)}` : 'Aluguel, salários, etc.'}
               </p>
             </div>
 
@@ -495,11 +886,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   </p>
                 </div>
                 <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
-                  {formatCurrency(monthlyMetrics.totalVariableSpreadsheet / (operationalDays || 1))}
+                  {formatCurrency(dailyMetrics.ingredientsCost + dailyMetrics.taxes + periodMetrics.totalVariableSpreadsheet)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Energia, água, gás, etc.
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Insumos + Taxas (${formatBrazilianDate(selectedDay)})` : 'Energia, água, gás, etc.'}
               </p>
             </div>
 
@@ -530,8 +921,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(dailyMetrics.finalResult)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Resultado Final Livre
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Dia: ${formatBrazilianDate(selectedDay)}` : 'Resultado Final Livre'}
               </p>
             </div>
 
@@ -635,7 +1026,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300 flex items-center space-x-1 mb-1">
                   <span>Nota de Rateio</span>
                 </p>
-                As taxas tributárias e taxas de cartão são calculadas diretamente em cima da receita. Os custos fixos mensais foram divididos igualmente entre os {operationalDays} dias selecionados.
+                As taxas tributárias e taxas de cartão são calculadas diretamente em cima da receita. Os custos fixos mensais foram divididos igualmente entre os {effectiveDays} dias selecionados.
               </div>
             </div>
 
@@ -666,8 +1057,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(weeklyMetrics.revenue)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Simulado para 7 dias
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Semana: ${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)}` : 'Simulado para 7 dias'}
               </p>
             </div>
 
@@ -686,8 +1077,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(weeklyMetrics.productNetProfit)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Faturamento - CMV e Taxas
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Semana: ${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)}` : 'Faturamento - CMV e Taxas'}
               </p>
             </div>
 
@@ -706,8 +1097,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(weeklyMetrics.otherRevenues)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Ganhos extras na planilha
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Semana: ${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)}` : 'Ganhos extras na planilha'}
               </p>
             </div>
 
@@ -726,8 +1117,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(weeklyMetrics.fixedCost)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Fração das despesas fixas
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Semana: ${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)}` : 'Fração das despesas fixas'}
               </p>
             </div>
 
@@ -743,11 +1134,11 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   </p>
                 </div>
                 <h4 className="text-xl font-bold tech-font-mono font-mono text-zinc-800 dark:text-zinc-200 break-words">
-                  {formatCurrency(monthlyMetrics.totalVariableSpreadsheet / 4.33)}
+                  {formatCurrency(weeklyMetrics.ingredientsCost + weeklyMetrics.taxes + periodMetrics.totalVariableSpreadsheet)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Energia, água, gás, etc.
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Insumos + Taxas (${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)})` : 'Energia, água, gás, etc.'}
               </p>
             </div>
 
@@ -778,8 +1169,8 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
                   {formatCurrency(weeklyMetrics.finalResult)}
                 </h4>
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2">
-                Resultado Final Livre
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3 border-t border-zinc-100/40 dark:border-zinc-700/40 pt-2 font-mono">
+                {dataSource === 'real' ? `Semana: ${formatBrazilianDate(weekRange.start)} - ${formatBrazilianDate(weekRange.end)}` : 'Resultado Final Livre'}
               </p>
             </div>
 
@@ -1320,7 +1711,7 @@ export default function ReportsTab({ products, taxes, fixedCosts, variableCosts,
         <div className="flex items-start space-x-2 p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-lg border border-zinc-150 dark:border-zinc-700 text-[11px] text-zinc-500 dark:text-zinc-400">
           <Info className="w-4 h-4 text-brand-tomato shrink-0 mt-0.5" />
           <p>
-            Esta planilha é calculada dividindo os custos mensais pelos dias úteis/operacionais ({operationalDays} dias) no caso da visualização Diária, ou por 4.33 no caso da Semanal. Os custos de wraps e tributos variam de acordo com as quantidades cadastradas nas estimativas de vendas de cada produto.
+            Esta planilha é calculada dividindo os custos mensais pelos dias úteis/operacionais ({effectiveDays} dias) no caso da visualização Diária, ou por 4.33 no caso da Semanal. Os custos de wraps e tributos variam de acordo com as quantidades cadastradas nas estimativas de vendas de cada produto.
           </p>
         </div>
       </div>

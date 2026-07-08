@@ -11,20 +11,22 @@ import {
   BookOpen,
   Loader2,
   FileSpreadsheet,
-  Receipt
+  Receipt,
+  Calendar
 } from 'lucide-react';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import ProductTab from './components/ProductTab';
 import TaxTab from './components/TaxTab';
 import FixedCostTab from './components/FixedCostTab';
-import SimulatorTab from './components/SimulatorTab';
+import DailySalesTab from './components/DailySalesTab';
 import ReportsTab from './components/ReportsTab';
 import RecipesTab from './components/RecipesTab';
 import IFoodImportTab from './components/IFoodImportTab';
 import PDFExportModal from './components/PDFExportModal';
 import PDVSection from './components/PDVSection';
 import SupplierTab from './components/SupplierTab';
+import PricingCalculatorTab from './components/PricingCalculatorTab';
 import { 
   Product, 
   Tax, 
@@ -74,9 +76,10 @@ export default function App() {
   const [sales, setSalesState] = useState<Sale[]>([]);
   const [suppliers, setSuppliersState] = useState<SupplierItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [cleanedTodaySales, setCleanedTodaySales] = useState<boolean>(false);
 
   // State: Navigation Active Tab
-  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores';
+  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores' | 'precificacao';
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
   // State: PDF Export Modal
@@ -93,6 +96,22 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Programmatically remove any leftover or empty sales for today 2026-07-08 as requested by the user
+  useEffect(() => {
+    if (currentUser && sales.length > 0 && !cleanedTodaySales) {
+      const todaySales = sales.filter(s => s.date.startsWith('2026-07-08'));
+      if (todaySales.length > 0) {
+        console.log(`Removing ${todaySales.length} sales for 2026-07-08 as requested.`);
+        Promise.all(todaySales.map(sale => deleteSale(currentUser.uid, sale.id)))
+          .then(() => {
+            showToast('Dados de venda do dia 08/07/2026 limpos conforme solicitado.');
+          })
+          .catch(err => console.error("Error cleaning up 2026-07-08 sales:", err));
+      }
+      setCleanedTodaySales(true);
+    }
+  }, [currentUser, sales, cleanedTodaySales]);
 
   // Sync state with Firestore in real-time when authenticated
   useEffect(() => {
@@ -477,6 +496,20 @@ export default function App() {
             <span>Produtos</span>
           </button>
 
+          {/* Precificação Tab */}
+          <button
+            onClick={() => setActiveTab('precificacao')}
+            className={`flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap lg:w-full ${
+              activeTab === 'precificacao'
+                ? 'bg-brand-tomato text-white border border-white/10 shadow-sm'
+                : 'text-orange-100/90 dark:text-zinc-400 hover:text-white dark:hover:text-white hover:bg-white/10 dark:hover:bg-zinc-800'
+            }`}
+            id="tab-btn-precificacao"
+          >
+            <Calculator className="w-4 h-4" />
+            <span>Precificação</span>
+          </button>
+
           {/* Taxes Tab */}
           <button
             onClick={() => setActiveTab('taxas')}
@@ -505,7 +538,7 @@ export default function App() {
             <span>Planilha Completa</span>
           </button>
 
-          {/* Simulator Tab */}
+          {/* Daily Sales Tab */}
           <button
             onClick={() => setActiveTab('simulador')}
             className={`flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap lg:w-full ${
@@ -515,8 +548,8 @@ export default function App() {
             }`}
             id="tab-btn-simulador"
           >
-            <Calculator className="w-4 h-4" />
-            <span>Simulador Mensal</span>
+            <Calendar className="w-4 h-4" />
+            <span>Vendas do Dia</span>
           </button>
 
           {/* Reports Tab */}
@@ -600,7 +633,10 @@ export default function App() {
                 </div>
               )}
               {activeTab === 'produtos' && (
-                <ProductTab products={products} setProducts={setProducts} taxes={taxes} />
+                <ProductTab products={products} setProducts={setProducts} taxes={taxes} suppliers={suppliers} />
+              )}
+              {activeTab === 'precificacao' && (
+                <PricingCalculatorTab products={products} taxes={taxes} suppliers={suppliers} />
               )}
               {activeTab === 'taxas' && (
                 <TaxTab taxes={taxes} setTaxes={setTaxes} />
@@ -616,13 +652,11 @@ export default function App() {
                 />
               )}
               {activeTab === 'simulador' && (
-                <SimulatorTab 
+                <DailySalesTab 
                   products={products} 
-                  setProducts={setProducts} 
                   taxes={taxes} 
-                  fixedCosts={fixedCosts} 
-                  variableCosts={variableCosts}
-                  otherRevenues={otherRevenues}
+                  sales={sales}
+                  showToast={showToast}
                 />
               )}
               {activeTab === 'relatorios' && (
@@ -633,6 +667,7 @@ export default function App() {
                   variableCosts={variableCosts}
                   otherRevenues={otherRevenues}
                   sales={sales}
+                  suppliers={suppliers}
                 />
               )}
               {activeTab === 'receitas' && (
