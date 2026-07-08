@@ -21,7 +21,8 @@ import {
   calculateProductMetrics, 
   formatCurrency, 
   formatPercent, 
-  getActiveTaxPercentage 
+  getActiveTaxPercentage,
+  parseSupplierUnitAndQty
 } from '../utils';
 
 interface ProductTabProps {
@@ -60,6 +61,7 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
   // Supplier costing states
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [ingQuantityUsed, setIngQuantityUsed] = useState<number | ''>('');
+  const [ingUnitMode, setIngUnitMode] = useState<string>('default'); // e.g. 'default', 'g', 'ml'
   const [formPackagingSupplierItemId, setFormPackagingSupplierItemId] = useState('');
   const [formPackagingQuantityUsed, setFormPackagingQuantityUsed] = useState<number | ''>(1);
 
@@ -102,6 +104,7 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
     setNewIngCost('');
     setSelectedSupplierId('');
     setIngQuantityUsed('');
+    setIngUnitMode('default');
     setFormPackagingSupplierItemId('');
     setFormPackagingQuantityUsed(1);
     setFormError('');
@@ -124,6 +127,7 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
     setNewIngCost('');
     setSelectedSupplierId('');
     setIngQuantityUsed('');
+    setIngUnitMode('default');
     setFormPackagingSupplierItemId(product.packagingSupplierItemId || '');
     setFormPackagingQuantityUsed(product.packagingQuantityUsed !== undefined ? product.packagingQuantityUsed : 1);
     setFormError('');
@@ -157,18 +161,25 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
       if (!sup) return;
       if (ingQuantityUsed === '' || isNaN(ingQuantityUsed) || ingQuantityUsed <= 0) return;
       
-      const computedCost = sup.price * Number(ingQuantityUsed);
+      const parsed = parseSupplierUnitAndQty(sup.unit);
+      const inputQty = Number(ingQuantityUsed);
+      const finalQty = inputQty / parsed.supplierBaseQty;
+
+      const computedCost = sup.price * finalQty;
+      const unitLabel = parsed.userUnitLabel;
+
       const newIng: Ingredient = {
         id: Date.now().toString(),
-        name: `${sup.name} (${ingQuantityUsed}${sup.unit})`,
-        cost: Number(computedCost.toFixed(2)),
+        name: `${sup.name} (${inputQty} ${unitLabel})`,
+        cost: Number(computedCost.toFixed(4)),
         supplierItemId: selectedSupplierId,
-        quantityUsed: Number(ingQuantityUsed),
+        quantityUsed: finalQty,
       };
       
       setFormIngredients([...formIngredients, newIng]);
       setSelectedSupplierId('');
       setIngQuantityUsed('');
+      setIngUnitMode('default');
     } else {
       if (!newIngName.trim()) return;
       if (newIngCost === '' || isNaN(newIngCost) || newIngCost < 0) return;
@@ -649,12 +660,13 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
                               setNewIngName('');
                               setNewIngCost('');
                               setIngQuantityUsed('');
+                              setIngUnitMode('default');
                             }}
-                            className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white focus:ring-1 focus:ring-brand-tomato focus:outline-none"
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 focus:ring-1 focus:ring-brand-tomato focus:outline-none"
                           >
-                            <option value="">-- Inserir Nome e Valor Manualmente --</option>
+                            <option value="" className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">-- Inserir Nome e Valor Manualmente --</option>
                             {suppliers.map((sup) => (
-                              <option key={sup.id} value={sup.id}>
+                              <option key={sup.id} value={sup.id} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">
                                 {sup.name} ({formatCurrency(sup.price)} / {sup.unit}) {sup.supplierName ? `[${sup.supplierName}]` : ''}
                               </option>
                             ))}
@@ -667,32 +679,48 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
                         /* Supplier Item form */
                         (() => {
                           const sup = suppliers.find((s) => s.id === selectedSupplierId);
-                          const computedCost = sup && ingQuantityUsed !== '' ? sup.price * Number(ingQuantityUsed) : 0;
+                          if (!sup) return null;
+                          
+                          const parsed = parseSupplierUnitAndQty(sup.unit);
+                          const inputQty = ingQuantityUsed !== '' ? Number(ingQuantityUsed) : 0;
+                          const finalQty = inputQty / parsed.supplierBaseQty;
+                          const computedCost = sup.price * finalQty;
+
                           return (
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700">
-                              <div className="sm:col-span-2">
-                                <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">
-                                  Quantidade Utilizada ({sup?.unit})
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type="number"
-                                    step="0.001"
-                                    min="0"
-                                    placeholder={`Ex: 0.150 para 150g, 2 para duas un`}
-                                    value={ingQuantityUsed}
-                                    onChange={(e) => setIngQuantityUsed(e.target.value === '' ? '' : Number(e.target.value))}
-                                    className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white"
-                                  />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-[10px] font-bold">
-                                    {sup?.unit}
-                                  </span>
+                              <div className="sm:col-span-2 flex gap-2">
+                                <div className="flex-1">
+                                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">
+                                    Quantidade Utilizada ({parsed.userUnitLabel})
+                                  </label>
+                                  <div className="relative">
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0"
+                                      placeholder={parsed.displayInstruction}
+                                      value={ingQuantityUsed}
+                                      onChange={(e) => setIngQuantityUsed(e.target.value === '' ? '' : Number(e.target.value))}
+                                      className="w-full pl-3 pr-10 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-zinc-900 dark:text-zinc-100"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-[10px] font-bold">
+                                      {parsed.userUnitLabel}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="w-24">
+                                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">
+                                    Un. Fornecedor
+                                  </label>
+                                  <div className="w-full px-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-500 text-center font-semibold">
+                                    {sup.unit}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex space-x-1 items-center">
                                 <div className="flex-1">
                                   <label className="block text-[10px] font-semibold text-zinc-500 uppercase mb-1">Custo Est.</label>
-                                  <div className="w-full px-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-250 dark:border-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                                  <div className="w-full px-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300">
                                     {formatCurrency(computedCost)}
                                   </div>
                                 </div>
@@ -753,32 +781,69 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
                           Nenhum ingrediente cadastrado. Use o formulário acima para somar os custos.
                         </p>
                       ) : (
-                        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 border border-zinc-200/40 dark:border-zinc-700/40 rounded-xl p-1.5 bg-white/40 dark:bg-black/10">
-                          {formIngredients.map((ing) => (
-                            <div key={ing.id} className="flex justify-between items-center text-xs bg-white dark:bg-zinc-850 px-3 py-1.5 rounded-lg border border-zinc-150 dark:border-zinc-750">
-                              <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[120px]">{ing.name}</span>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-bold text-zinc-900 dark:text-white">
-                                  {ing.supplierItemId && suppliers ? (
-                                    (() => {
-                                      const s = suppliers.find((x) => x.id === ing.supplierItemId);
-                                      return formatCurrency((s ? s.price : ing.cost) * (ing.quantityUsed || 1));
-                                    })()
-                                  ) : (
-                                    formatCurrency(ing.cost)
-                                  )}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveIngredient(ing.id)}
-                                  className="text-zinc-400 hover:text-brand-tomato p-0.5 rounded transition-colors cursor-pointer"
-                                  title="Remover"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900">
+                          <table className="w-full text-[11px] text-left">
+                            <thead className="bg-zinc-50 dark:bg-zinc-850 text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+                              <tr>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wider">Item</th>
+                                <th className="px-2 py-2 font-bold uppercase tracking-wider text-right">Insumo Base</th>
+                                <th className="px-2 py-2 font-bold uppercase tracking-wider text-center">Uso</th>
+                                <th className="px-2 py-2 font-bold uppercase tracking-wider text-right">Custo Est.</th>
+                                <th className="px-2 py-2 w-8 text-center"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                              {formIngredients.map((ing) => {
+                                let baseCostStr = 'Manual';
+                                let displayQty = '-';
+                                let finalCost = ing.cost;
+                                
+                                if (ing.supplierItemId && suppliers) {
+                                  const s = suppliers.find((x) => x.id === ing.supplierItemId);
+                                  if (s) {
+                                    baseCostStr = `${formatCurrency(s.price)} / ${s.unit}`;
+                                    finalCost = s.price * (ing.quantityUsed || 1);
+                                    
+                                    const parsed = parseSupplierUnitAndQty(s.unit);
+                                    const userQty = (ing.quantityUsed || 1) * parsed.supplierBaseQty;
+                                    // format with proper decimals if float
+                                    const formattedQty = Number(userQty.toFixed(2));
+                                    displayQty = `${formattedQty} ${parsed.userUnitLabel}`;
+                                  }
+                                } else {
+                                  // Manual ingredient
+                                  displayQty = '1 un';
+                                }
+                                
+                                return (
+                                  <tr key={ing.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300">
+                                    <td className="px-3 py-2.5 font-medium truncate max-w-[120px]" title={ing.name}>
+                                      {ing.supplierItemId && suppliers ? suppliers.find((x) => x.id === ing.supplierItemId)?.name || ing.name : ing.name}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right font-mono text-zinc-500 dark:text-zinc-400">
+                                      {baseCostStr}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-center font-bold text-zinc-650 dark:text-zinc-350">
+                                      {displayQty}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right font-bold text-zinc-900 dark:text-white">
+                                      {formatCurrency(finalCost)}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveIngredient(ing.id)}
+                                        className="text-zinc-400 hover:text-brand-tomato p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-all cursor-pointer"
+                                        title="Remover"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </div>
@@ -805,11 +870,11 @@ export default function ProductTab({ products, setProducts, taxes, suppliers }: 
                               setFormPackagingCost('');
                             }
                           }}
-                          className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs dark:text-white mb-2 focus:ring-1 focus:ring-brand-tomato focus:outline-none"
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 mb-2 focus:ring-1 focus:ring-brand-tomato focus:outline-none"
                         >
-                          <option value="">-- Custo de Embalagem Manual --</option>
+                          <option value="" className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">-- Custo de Embalagem Manual --</option>
                           {suppliers.map((sup) => (
-                            <option key={sup.id} value={sup.id}>
+                            <option key={sup.id} value={sup.id} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">
                               {sup.name} ({formatCurrency(sup.price)} / {sup.unit})
                             </option>
                           ))}

@@ -737,10 +737,10 @@ Combo Burguer	18	R$ 35,00`}
                 <select
                   value={nameColIndex}
                   onChange={(e) => setNameColIndex(Number(e.target.value))}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs focus:ring-brand-tomato focus:border-brand-tomato font-medium"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs text-zinc-900 dark:text-zinc-100 focus:ring-brand-tomato focus:border-brand-tomato font-medium"
                 >
                   {headers.map((h, i) => (
-                    <option key={i} value={i}>{h || `Coluna ${i + 1}`}</option>
+                    <option key={i} value={i} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">{h || `Coluna ${i + 1}`}</option>
                   ))}
                 </select>
               </div>
@@ -753,10 +753,10 @@ Combo Burguer	18	R$ 35,00`}
                 <select
                   value={qtyColIndex}
                   onChange={(e) => setQtyColIndex(Number(e.target.value))}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs focus:ring-brand-tomato focus:border-brand-tomato font-medium"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs text-zinc-900 dark:text-zinc-100 focus:ring-brand-tomato focus:border-brand-tomato font-medium"
                 >
                   {headers.map((h, i) => (
-                    <option key={i} value={i}>{h || `Coluna ${i + 1}`}</option>
+                    <option key={i} value={i} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">{h || `Coluna ${i + 1}`}</option>
                   ))}
                 </select>
               </div>
@@ -769,10 +769,10 @@ Combo Burguer	18	R$ 35,00`}
                 <select
                   value={priceColIndex}
                   onChange={(e) => setPriceColIndex(Number(e.target.value))}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs focus:ring-brand-tomato focus:border-brand-tomato font-medium"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg py-2 px-3 text-xs text-zinc-900 dark:text-zinc-100 focus:ring-brand-tomato focus:border-brand-tomato font-medium"
                 >
                   {headers.map((h, i) => (
-                    <option key={i} value={i}>{h || `Coluna ${i + 1}`}</option>
+                    <option key={i} value={i} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">{h || `Coluna ${i + 1}`}</option>
                   ))}
                 </select>
               </div>

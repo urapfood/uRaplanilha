@@ -232,11 +232,11 @@ export default function RecipesTab({ recipes, setRecipes, products }: RecipesTab
               <select
                 value={selectedProductId}
                 onChange={(e) => handleProductChange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white transition-all cursor-pointer"
+                className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato text-zinc-900 dark:text-zinc-100 transition-all cursor-pointer"
               >
-                <option value="">-- Selecione ou digite um nome abaixo --</option>
+                <option value="" className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">-- Selecione ou digite um nome abaixo --</option>
                 {products.map(p => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={p.id} className="text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800">
                     {p.name} {p.category ? `(${p.category})` : ''}
                   </option>
                 ))}
