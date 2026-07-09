@@ -19,9 +19,6 @@ interface HeaderProps {
   productCount: number;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
-  onExportJSON: () => void;
-  onExportCSV: () => void;
-  onImportJSON: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onExportPDF: () => void;
   currentUser: any;
   onLogout: () => void;
@@ -35,9 +32,6 @@ export default function Header({
   productCount,
   darkMode,
   setDarkMode,
-  onExportJSON,
-  onExportCSV,
-  onImportJSON,
   onExportPDF,
   currentUser,
   onLogout,
@@ -136,59 +130,18 @@ export default function Header({
           {/* Action buttons */}
           <div className="flex items-center space-x-2">
             
-            {/* Import / Export dropdown or separate icon buttons */}
+            {/* PDF Export Only */}
             <div className="flex items-center space-x-1 border-r border-zinc-200 dark:border-zinc-800 pr-2">
-              {/* Export JSON */}
-              <button
-                onClick={onExportJSON}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                title="Exportar Backup (JSON)"
-                id="btn-export-json"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-
-              {/* Export CSV */}
-              <button
-                onClick={onExportCSV}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors hidden sm:inline-flex"
-                title="Exportar Planilha (CSV)"
-                id="btn-export-csv"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-              </button>
-
-              {/* Export PDF (Personalizado) */}
               <button
                 onClick={onExportPDF}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                className="flex items-center space-x-2 px-3 py-1.5 bg-brand-tomato/10 text-brand-tomato hover:bg-brand-tomato hover:text-white rounded-lg transition-colors border border-brand-tomato/20 font-bold text-xs cursor-pointer shadow-xs"
                 title="Exportar PDF Personalizado"
                 id="btn-export-pdf"
               >
                 <FileText className="w-4 h-4" />
+                <span>Exportar PDF</span>
               </button>
-
-              {/* Import JSON */}
-              <button
-                onClick={triggerFileInput}
-                className="p-2 text-zinc-600 dark:text-zinc-300 hover:text-brand-tomato hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                title="Importar Backup"
-                id="btn-import-trigger"
-              >
-                <Upload className="w-4 h-4" />
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={onImportJSON}
-                accept=".json"
-                className="hidden"
-                id="import-file-input"
-              >
-              </input>
             </div>
-
-
 
             {/* User Profile and LogOut */}
             {currentUser && (

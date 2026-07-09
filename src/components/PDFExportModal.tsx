@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   FileText, 
@@ -10,10 +10,15 @@ import {
   Download,
   Percent,
   DollarSign,
-  Briefcase
+  Briefcase,
+  Filter,
+  Calendar,
+  Truck,
+  Layers,
+  ShoppingBag
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import { Product, Tax, FixedCost, Recipe } from '../types';
+import { Product, Tax, FixedCost, Recipe, SupplierItem, Sale } from '../types';
 import { getProductCost, calculateProductMetrics } from '../utils';
 
 interface PDFExportModalProps {
@@ -23,6 +28,10 @@ interface PDFExportModalProps {
   taxes: Tax[];
   fixedCosts: FixedCost[];
   recipes: Recipe[];
+  suppliers: SupplierItem[];
+  sales?: Sale[];
+  activeSearchTerm?: string;
+  activeCategory?: string;
 }
 
 interface ThemeConfig {
@@ -71,10 +80,22 @@ export default function PDFExportModal({
   taxes,
   fixedCosts,
   recipes,
+  suppliers,
+  sales = [],
+  activeSearchTerm = '',
+  activeCategory = 'Todas',
 }: PDFExportModalProps) {
-  const [businessName, setBusinessName] = useState('uRapFood Delivery');
+  // Load business name from localStorage or fallback
+  const [businessName, setBusinessName] = useState(() => {
+    return localStorage.getItem('urapfood_pdf_business_name') || 'uRapFood Delivery';
+  });
   const [selectedTheme, setSelectedTheme] = useState<'ifood' | 'emerald' | 'blue' | 'charcoal'>('ifood');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Filters State
+  const [filterSearchTerm, setFilterSearchTerm] = useState(activeSearchTerm);
+  const [filterCategory, setFilterCategory] = useState(activeCategory);
+  const [useFilters, setUseFilters] = useState(true);
 
   // Sections toggle
   const [includeSummary, setIncludeSummary] = useState(true);
@@ -82,6 +103,45 @@ export default function PDFExportModal({
   const [includeFixedCosts, setIncludeFixedCosts] = useState(true);
   const [includeTaxes, setIncludeTaxes] = useState(true);
   const [includeRecipes, setIncludeRecipes] = useState(true);
+  const [includeMonthlyReport, setIncludeMonthlyReport] = useState(true);
+  const [includeSuppliers, setIncludeSuppliers] = useState(true);
+
+  // Sync with props when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFilterSearchTerm(activeSearchTerm);
+      setFilterCategory(activeCategory);
+      // Automatically enable filter checkbox if we have active filters
+      setUseFilters(!!activeSearchTerm || activeCategory !== 'Todas');
+    }
+  }, [isOpen, activeSearchTerm, activeCategory]);
+
+  // Persist business name on change
+  const handleBusinessNameChange = (val: string) => {
+    setBusinessName(val);
+    localStorage.setItem('urapfood_pdf_business_name', val);
+  };
+
+  // Get list of unique categories for filters dropdown
+  const productCategories = useMemo(() => {
+    const list = new Set<string>();
+    products.forEach((p) => {
+      if (p.category) list.add(p.category);
+    });
+    return ['Todas', ...Array.from(list)];
+  }, [products]);
+
+  // Filtered products list to export
+  const productsToExport = useMemo(() => {
+    if (!useFilters) return products;
+    return products.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(filterSearchTerm.toLowerCase()) || 
+                            (p.notes && p.notes.toLowerCase().includes(filterSearchTerm.toLowerCase())) ||
+                            (p.category && p.category.toLowerCase().includes(filterSearchTerm.toLowerCase()));
+      const matchesCategory = filterCategory === 'Todas' || p.category === filterCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, useFilters, filterSearchTerm, filterCategory]);
 
   if (!isOpen) return null;
 
@@ -155,11 +215,11 @@ export default function PDFExportModal({
       // Active Tax Rate Calc
       const activeTaxRate = taxes.filter(t => t.active).reduce((sum, t) => sum + t.percentage, 0);
 
-      // Financial calculations for summary
-      const totalEstimatedSales = products.reduce((sum, p) => sum + (p.estimatedSales || 0), 0);
-      const totalRevenue = products.reduce((sum, p) => sum + (p.sellingPrice * (p.estimatedSales || 0)), 0);
-      const totalIngredientCost = products.reduce((sum, p) => {
-        const cost = getProductCost(p);
+      // Financial calculations for summary using filtered products list
+      const totalEstimatedSales = productsToExport.reduce((sum, p) => sum + (p.estimatedSales || 0), 0);
+      const totalRevenue = productsToExport.reduce((sum, p) => sum + (p.sellingPrice * (p.estimatedSales || 0)), 0);
+      const totalIngredientCost = productsToExport.reduce((sum, p) => {
+        const cost = getProductCost(p, suppliers);
         return sum + (cost * (p.estimatedSales || 0));
       }, 0);
       const totalTaxCost = (totalRevenue * activeTaxRate) / 100;
@@ -228,7 +288,7 @@ export default function PDFExportModal({
       }
 
       // --- SECTION 2: PRODUCTS TABLE ---
-      if (includeProducts && products.length > 0) {
+      if (includeProducts && productsToExport.length > 0) {
         checkPageOverflow(40);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
@@ -263,7 +323,7 @@ export default function PDFExportModal({
         y += 8;
 
         // Table Rows
-        products.forEach((prod, idx) => {
+        productsToExport.forEach((prod, idx) => {
           checkPageOverflow(8);
           
           // Alternating backgrounds
@@ -280,7 +340,7 @@ export default function PDFExportModal({
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
 
-          const metrics = calculateProductMetrics(prod, activeTaxRate);
+          const metrics = calculateProductMetrics(prod, activeTaxRate, suppliers);
 
           curX = margin;
           // Product Name with truncation to avoid overflow
@@ -414,7 +474,12 @@ export default function PDFExportModal({
       }
 
       // --- SECTION 4: RECIPES / FICHAS TÉCNICAS ---
-      if (includeRecipes && recipes.length > 0) {
+      // Only include recipes for products we are currently exporting
+      const recipesToExport = recipes.filter(r => 
+        productsToExport.some(p => p.name.toLowerCase() === r.productName.toLowerCase())
+      );
+
+      if (includeRecipes && recipesToExport.length > 0) {
         checkPageOverflow(40);
         y += 4;
         doc.setFont('helvetica', 'bold');
@@ -428,7 +493,7 @@ export default function PDFExportModal({
         doc.line(margin, y, pageWidth - margin, y);
         y += 8;
 
-        recipes.forEach((recipe, idx) => {
+        recipesToExport.forEach((recipe, idx) => {
           checkPageOverflow(50);
           
           doc.setFont('helvetica', 'bold');
@@ -486,6 +551,168 @@ export default function PDFExportModal({
 
           y = Math.max(blockLeftY, blockRightY) + 8;
         });
+      }
+
+      // --- SECTION 6: MONTHLY REPORTS ---
+      if (includeMonthlyReport && sales.length > 0) {
+        checkPageOverflow(40);
+        y += 4;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(theme.primary[0], theme.primary[1], theme.primary[2]);
+        doc.text('RELATÓRIO DE VENDAS MENSAIS', margin, y);
+        y += 6;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Resumo do faturamento, custos e lucros agrupados por mês.', margin, y);
+        y += 6;
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        const salesByMonth: Record<string, { totalSales: number, totalRevenue: number, totalCost: number, totalTaxes: number, totalProfit: number, orderCount: number }> = {};
+        
+        sales.forEach(s => {
+          const monthKey = s.date.substring(0, 7); // YYYY-MM
+          if (!salesByMonth[monthKey]) {
+            salesByMonth[monthKey] = { totalSales: 0, totalRevenue: 0, totalCost: 0, totalTaxes: 0, totalProfit: 0, orderCount: 0 };
+          }
+          salesByMonth[monthKey].orderCount++;
+          salesByMonth[monthKey].totalRevenue += s.totalAmount;
+          salesByMonth[monthKey].totalCost += s.totalCost;
+          salesByMonth[monthKey].totalTaxes += s.taxesAmount;
+          salesByMonth[monthKey].totalProfit += s.netProfit;
+        });
+
+        const sortedMonths = Object.keys(salesByMonth).sort((a, b) => b.localeCompare(a)); // Descending
+
+        sortedMonths.forEach(month => {
+          checkPageOverflow(40);
+          const data = salesByMonth[month];
+          
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y, pageWidth - margin * 2, 28, 'F');
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(60, 60, 60);
+          
+          const [year, mStr] = month.split('-');
+          const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+          const displayMonth = `${monthNames[parseInt(mStr, 10) - 1]} / ${year}`;
+          
+          doc.text(`Mês: ${displayMonth} (${data.orderCount} vendas registradas)`, margin + 4, y + 6);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          
+          const colW = (pageWidth - margin * 2 - 8) / 4;
+          
+          doc.setTextColor(100, 100, 100);
+          doc.text('Faturamento:', margin + 4, y + 14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(theme.primary[0], theme.primary[1], theme.primary[2]);
+          doc.text(`R$ ${data.totalRevenue.toFixed(2).replace('.', ',')}`, margin + 4, y + 20);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text('Custos Produto:', margin + 4 + colW, y + 14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(40, 40, 40);
+          doc.text(`R$ ${data.totalCost.toFixed(2).replace('.', ',')}`, margin + 4 + colW, y + 20);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text('Impostos Pagos:', margin + 4 + colW * 2, y + 14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(40, 40, 40);
+          doc.text(`R$ ${data.totalTaxes.toFixed(2).replace('.', ',')}`, margin + 4 + colW * 2, y + 20);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text('Lucro Bruto:', margin + 4 + colW * 3, y + 14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(data.totalProfit >= 0 ? 34 : 220, data.totalProfit >= 0 ? 197 : 38, data.totalProfit >= 0 ? 94 : 38);
+          doc.text(`R$ ${data.totalProfit.toFixed(2).replace('.', ',')}`, margin + 4 + colW * 3, y + 20);
+
+          y += 32;
+        });
+      }
+
+      // --- SECTION 7: SUPPLIERS ---
+      if (includeSuppliers && suppliers.length > 0) {
+        checkPageOverflow(40);
+        y += 4;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(theme.primary[0], theme.primary[1], theme.primary[2]);
+        doc.text('FORNECEDORES E INSUMOS', margin, y);
+        y += 6;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Lista de matérias-primas cadastradas e seus fornecedores.', margin, y);
+        y += 6;
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        const colWidths = [
+          (pageWidth - margin * 2) * 0.45, // Nome/Insumo
+          (pageWidth - margin * 2) * 0.35, // Fornecedor
+          (pageWidth - margin * 2) * 0.20  // Preço/Medida
+        ];
+
+        // Table Header
+        doc.setFillColor(theme.primary[0], theme.primary[1], theme.primary[2]);
+        doc.rect(margin, y - 4, pageWidth - margin * 2, 8, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        
+        let curX = margin + 2;
+        doc.text('INSUMO / MATERIAL', curX, y + 1.5);
+        curX += colWidths[0];
+        doc.text('FORNECEDOR / LOCAL', curX, y + 1.5);
+        curX += colWidths[1];
+        doc.text('PREÇO', curX, y + 1.5);
+        
+        y += 8;
+
+        const truncateText = (str: string, length: number) => {
+          if (str.length <= length) return str;
+          return str.substring(0, length) + '...';
+        };
+
+        suppliers.forEach((sup, idx) => {
+          checkPageOverflow(8);
+          
+          if (idx % 2 === 0) {
+            doc.setFillColor(249, 250, 251);
+            doc.rect(margin, y - 4, pageWidth - margin * 2, 8, 'F');
+          }
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(60, 60, 60);
+
+          curX = margin + 2;
+          doc.text(truncateText(sup.name, 45), curX, y + 1.5);
+          
+          curX += colWidths[0];
+          doc.text(truncateText(sup.supplierName || 'Não informado', 35), curX, y + 1.5);
+          
+          curX += colWidths[1];
+          doc.setFont('helvetica', 'bold');
+          doc.text(`R$ ${sup.price.toFixed(2).replace('.', ',')} / ${sup.unit}`, curX, y + 1.5);
+          
+          y += 8;
+        });
+        
+        y += 4;
       }
 
       // Draw footer on last page
@@ -554,10 +781,66 @@ export default function PDFExportModal({
               <input
                 type="text"
                 value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                onChange={(e) => handleBusinessNameChange(e.target.value)}
                 placeholder="Ex: uRapFood Pizzaria, Meu Delivery"
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2.5 px-3 text-sm focus:ring-brand-tomato focus:border-brand-tomato font-medium text-zinc-800 dark:text-zinc-200"
               />
+            </div>
+
+            {/* Spreadsheet Filters */}
+            <div className="space-y-3 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-brand-tomato" />
+                  Filtros da Planilha (PDF)
+                </span>
+                <label className="flex items-center space-x-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useFilters}
+                    onChange={(e) => setUseFilters(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-brand-tomato focus:ring-brand-tomato"
+                  />
+                  <span>Aplicar Filtros</span>
+                </label>
+              </div>
+
+              {useFilters && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-zinc-400">Buscar por Nome</label>
+                    <input
+                      type="text"
+                      value={filterSearchTerm}
+                      onChange={(e) => setFilterSearchTerm(e.target.value)}
+                      placeholder="Ex: Pizza, Suco..."
+                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1.5 px-2.5 text-xs focus:ring-brand-tomato focus:border-brand-tomato text-zinc-800 dark:text-zinc-200"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-zinc-400">Categoria</label>
+                    <select
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1.5 px-2 text-xs focus:ring-brand-tomato focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      {productCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Indication of products being exported */}
+              <div className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium flex items-center justify-between pt-1.5 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                <span>Produtos incluídos no relatório:</span>
+                <span className="font-bold text-brand-tomato">
+                  {productsToExport.length} de {products.length} itens
+                </span>
+              </div>
             </div>
 
             {/* Colors / Themes selection */}
@@ -649,6 +932,26 @@ export default function PDFExportModal({
                   <span>5. Fichas Técnicas e Modo de Preparo das Receitas</span>
                 </label>
 
+                <label className="flex items-center space-x-3 text-zinc-700 dark:text-zinc-300 font-medium cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeMonthlyReport}
+                    onChange={(e) => setIncludeMonthlyReport(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-brand-tomato focus:ring-brand-tomato"
+                  />
+                  <span>6. Relatório de Vendas e Faturamento Mensal</span>
+                </label>
+
+                <label className="flex items-center space-x-3 text-zinc-700 dark:text-zinc-300 font-medium cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeSuppliers}
+                    onChange={(e) => setIncludeSuppliers(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-brand-tomato focus:ring-brand-tomato"
+                  />
+                  <span>7. Lista de Fornecedores e Matéria-Prima</span>
+                </label>
+
               </div>
             </div>
 
@@ -666,7 +969,7 @@ export default function PDFExportModal({
             <button
               type="button"
               onClick={handleGeneratePDF}
-              disabled={isGenerating || (!includeSummary && !includeProducts && !includeFixedCosts && !includeTaxes && !includeRecipes)}
+              disabled={isGenerating || (!includeSummary && !includeProducts && !includeFixedCosts && !includeTaxes && !includeRecipes && !includeMonthlyReport && !includeSuppliers)}
               className="px-5 py-2.5 bg-brand-tomato hover:bg-brand-tomato/95 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md flex items-center space-x-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGenerating ? (

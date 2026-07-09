@@ -22,7 +22,6 @@ import FixedCostTab from './components/FixedCostTab';
 import DailySalesTab from './components/DailySalesTab';
 import ReportsTab from './components/ReportsTab';
 import RecipesTab from './components/RecipesTab';
-import IFoodImportTab from './components/IFoodImportTab';
 import PDFExportModal from './components/PDFExportModal';
 import PDVSection from './components/PDVSection';
 import SupplierTab from './components/SupplierTab';
@@ -88,7 +87,7 @@ export default function App() {
   const [cleanedTodaySales, setCleanedTodaySales] = useState<boolean>(false);
 
   // State: Navigation Active Tab
-  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores' | 'precificacao' | 'admin-licenses';
+  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'pdv' | 'fornecedores' | 'precificacao' | 'admin-licenses';
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
   // State: User profile and licensing state
@@ -97,6 +96,8 @@ export default function App() {
 
   // State: PDF Export Modal
   const [isPDFModalOpen, setIsPDFModalOpen] = useState<boolean>(false);
+  const [productSearchTerm, setProductSearchTerm] = useState<string>('');
+  const [productSelectedCategory, setProductSelectedCategory] = useState<string>('Todas');
 
   // State: Clear Data Confirm Modal
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
@@ -355,119 +356,6 @@ export default function App() {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   // JSON Export (Full backup)
-  const handleExportJSON = () => {
-    try {
-      const backupData = {
-        version: '1.0.0',
-        exportedAt: new Date().toISOString(),
-        products,
-        taxes,
-        fixedCosts,
-        variableCosts,
-        otherRevenues,
-        recipes,
-      };
-
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `uraplanilha-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      showToast('Backup JSON exportado com sucesso!');
-    } catch (err) {
-      showToast('Erro ao exportar backup JSON.', 'error');
-    }
-  };
-
-  // CSV Export (Excel friendly)
-  const handleExportCSV = () => {
-    try {
-      // CSV Headers
-      let csvContent = '\uFEFF'; // UTF-8 BOM for Excel Portuguese encoding compatibility
-      csvContent += 'Nome;Categoria;Preço de Venda (R$);Custo de Ingredientes (R$);Taxas Aplicadas (%);Valor Taxas (R$);Lucro Líquido Unitário (R$);Margem Líquida (%);Vendas Estimadas;Faturamento Estimado (R$);Lucro Estimado (R$);Observações\n';
-
-      products.forEach((p) => {
-        const metrics = calculateProductMetrics(p, activeTaxRate);
-        const qty = p.estimatedSales || 0;
-        const revenue = p.sellingPrice * qty;
-        const simulatedNetProfit = metrics.netProfit * qty;
-
-        const row = [
-          p.name.replace(/;/g, ','),
-          (p.category || 'N/A').replace(/;/g, ','),
-          p.sellingPrice.toFixed(2).replace('.', ','),
-          metrics.cost.toFixed(2).replace('.', ','),
-          activeTaxRate.toFixed(2).replace('.', ','),
-          metrics.taxValue.toFixed(2).replace('.', ','),
-          metrics.netProfit.toFixed(2).replace('.', ','),
-          metrics.margin.toFixed(2).replace('.', ','),
-          qty,
-          revenue.toFixed(2).replace('.', ','),
-          simulatedNetProfit.toFixed(2).replace('.', ','),
-          (p.notes || '').replace(/;/g, ',').replace(/\n/g, ' ')
-        ];
-
-        csvContent += row.join(';') + '\n';
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `uraplanilha-produtos-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      showToast('Planilha de produtos (CSV) exportada com sucesso!');
-    } catch (err) {
-      showToast('Erro ao exportar planilha CSV.', 'error');
-    }
-  };
-
-  // JSON Import (Restore backup)
-  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target?.result as string);
-        
-        // Simple safety checks
-        if (!parsed.products || !Array.isArray(parsed.products)) {
-          throw new Error('Formato inválido: lista de produtos ausente.');
-        }
-
-        setProducts(parsed.products);
-        if (parsed.taxes && Array.isArray(parsed.taxes)) setTaxes(parsed.taxes);
-        if (parsed.fixedCosts && Array.isArray(parsed.fixedCosts)) setFixedCosts(parsed.fixedCosts);
-        if (parsed.variableCosts && Array.isArray(parsed.variableCosts)) setVariableCosts(parsed.variableCosts);
-        if (parsed.otherRevenues && Array.isArray(parsed.otherRevenues)) setOtherRevenues(parsed.otherRevenues);
-        if (parsed.recipes && Array.isArray(parsed.recipes)) {
-          setRecipes(parsed.recipes);
-        } else {
-          setRecipes([]);
-        }
-
-        showToast('Backup importado e restaurado com sucesso!');
-        // Reset file input value
-        event.target.value = '';
-      } catch (err) {
-        showToast('Falha na importação: Arquivo JSON de backup inválido.', 'error');
-        event.target.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const handleCancelSubscription = () => {
     const whatsAppText = "Olá! Gostaria de alterar ou cancelar minha assinatura do uRapFood.";
     const whatsAppLink = `https://wa.me/55996507712?text=${encodeURIComponent(whatsAppText)}`;
@@ -595,9 +483,6 @@ export default function App() {
         productCount={products.length}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        onExportJSON={handleExportJSON}
-        onExportCSV={handleExportCSV}
-        onImportJSON={handleImportJSON}
         onExportPDF={() => setIsPDFModalOpen(true)}
         currentUser={currentUser}
         onLogout={() => signOut(auth)}
@@ -757,20 +642,6 @@ export default function App() {
             <span>Receitas</span>
           </button>
 
-          {/* iFood Import Tab */}
-          <button
-            onClick={() => setActiveTab('ifood')}
-            className={`flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap lg:w-full ${
-              activeTab === 'ifood'
-                ? 'bg-brand-tomato text-white border border-white/10 shadow-sm'
-                : 'text-orange-100/90 dark:text-zinc-400 hover:text-white dark:hover:text-white hover:bg-white/10 dark:hover:bg-zinc-800'
-            }`}
-            id="tab-btn-ifood"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Importar iFood</span>
-          </button>
-
           {/* Fornecedores Tab */}
           <button
             onClick={() => setActiveTab('fornecedores')}
@@ -868,7 +739,16 @@ export default function App() {
                 </div>
               )}
               {activeTab === 'produtos' && (
-                <ProductTab products={products} setProducts={setProducts} taxes={taxes} suppliers={suppliers} />
+                <ProductTab 
+                  products={products} 
+                  setProducts={setProducts} 
+                  taxes={taxes} 
+                  suppliers={suppliers} 
+                  searchTerm={productSearchTerm}
+                  setSearchTerm={setProductSearchTerm}
+                  selectedCategory={productSelectedCategory}
+                  setSelectedCategory={setProductSelectedCategory}
+                />
               )}
               {activeTab === 'precificacao' && (
                 <PricingCalculatorTab products={products} taxes={taxes} suppliers={suppliers} />
@@ -912,13 +792,6 @@ export default function App() {
                   products={products} 
                 />
               )}
-              {activeTab === 'ifood' && (
-                <IFoodImportTab 
-                  products={products}
-                  setProducts={setProducts}
-                  showToast={showToast}
-                />
-              )}
               {activeTab === 'fornecedores' && (
                 <SupplierTab 
                   suppliers={suppliers}
@@ -945,6 +818,10 @@ export default function App() {
         taxes={taxes}
         fixedCosts={fixedCosts}
         recipes={recipes}
+        suppliers={suppliers}
+        sales={sales}
+        activeSearchTerm={productSearchTerm}
+        activeCategory={productSelectedCategory}
       />
 
       {/* Clear Data Confirmation Modal */}

@@ -31,14 +31,23 @@ interface ProductTabProps {
   setProducts: (products: Product[]) => void;
   taxes: Tax[];
   suppliers: SupplierItem[];
+  searchTerm: string;
+  setSearchTerm: (val: string) => void;
+  selectedCategory: string;
+  setSelectedCategory: (val: string) => void;
 }
 
-export default function ProductTab({ products, setProducts, taxes, suppliers }: ProductTabProps) {
+export default function ProductTab({ 
+  products, 
+  setProducts, 
+  taxes, 
+  suppliers,
+  searchTerm,
+  setSearchTerm,
+  selectedCategory,
+  setSelectedCategory
+}: ProductTabProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
-
-  // Search & Filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Todas');
 
   // Form Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);

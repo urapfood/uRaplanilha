@@ -205,11 +205,11 @@ export default function LandingSalesPage({ onStartTrial, onLogin }: LandingSales
           {/* Feature 3 */}
           <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs space-y-3.5">
             <div className="p-2.5 bg-brand-tomato/10 text-brand-tomato w-fit rounded-xl">
-              <ShoppingCart className="w-5 h-5" />
+              <Calculator className="w-5 h-5" />
             </div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">Importador Automático iFood</h3>
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">Simulador de Margem</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
-              Importe o relatório de vendas do seu portal de parceiro iFood. O sistema lê as taxas aplicadas, cupons, reembolsos e calcula a receita líquida sem esforço.
+              Calcule instantaneamente o preço ideal de venda considerando impostos, custos e taxas de delivery para atingir a margem líquida desejada.
             </p>
           </div>
 
@@ -255,7 +255,7 @@ export default function LandingSalesPage({ onStartTrial, onLogin }: LandingSales
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block">Preview do Sistema</span>
           <h2 className="text-2xl font-black text-zinc-950 dark:text-white tracking-tight">Uma interface moderna, rápida e intuitiva</h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-            Organizado em abas simples para você alternar entre PDV, Simulador de Preço, iFood e Ficha Técnica com apenas um toque.
+            Organizado em abas simples para você alternar entre PDV, Simulador de Preço, Relatórios e Ficha Técnica com apenas um toque.
           </p>
           <div className="pt-4 max-w-3xl mx-auto">
             <img 
@@ -304,10 +304,10 @@ export default function LandingSalesPage({ onStartTrial, onLogin }: LandingSales
           <div className="space-y-1.5">
             <h4 className="text-xs font-black text-zinc-900 dark:text-white flex items-center gap-1.5 uppercase">
               <HelpCircle className="w-4 h-4 text-brand-tomato shrink-0" />
-              A importação do iFood é segura?
+              Preciso instalar algum programa?
             </h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium pl-5 leading-relaxed">
-              Totalmente. Você apenas exporta a planilha padrão de vendas do seu portal do iFood Parceiro e faz o upload direto no uRapFood. Nós não solicitamos sua senha do iFood e nenhum dado sensível da sua conta bancária é acessado.
+              Não! O uRapFood é 100% online e roda diretamente no seu navegador, no computador ou celular. Todas as suas informações ficam salvas com segurança na nuvem.
             </p>
           </div>
 

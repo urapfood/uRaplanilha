@@ -194,7 +194,7 @@ export default function PricingCalculatorTab({
               <select
                 value={selectedProductId}
                 onChange={(e) => handleLoadProduct(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-750 rounded-xl text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato cursor-pointer"
+                className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-tomato cursor-pointer"
               >
                 <option value="" className="text-zinc-900 dark:text-white bg-white dark:bg-zinc-800">
                   -- Inserir valores manualmente --
@@ -369,14 +369,14 @@ export default function PricingCalculatorTab({
         <div className="lg:col-span-7 space-y-6">
           
           {/* Main Pricing Output Card */}
-          <div className="bg-zinc-950 dark:bg-black text-white rounded-3xl p-6 shadow-lg border border-zinc-850 relative overflow-hidden flex flex-col justify-between min-h-[300px]">
+          <div className="bg-zinc-950 dark:bg-black text-white rounded-3xl p-6 shadow-lg border border-zinc-800 relative overflow-hidden flex flex-col justify-between min-h-[300px]">
             <div className="absolute top-0 right-0 p-8 opacity-5">
               <Calculator className="w-48 h-48" />
             </div>
 
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] tracking-widest uppercase font-extrabold text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-850">
+                <span className="text-[10px] tracking-widest uppercase font-extrabold text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
                   {calcMode === 'margin' ? 'Preço Recomendado' : 'Resultado do Preço Proposto'}
                 </span>
                 <span className="text-zinc-400 text-xs font-semibold">
@@ -499,7 +499,7 @@ export default function PricingCalculatorTab({
               Devido à comissão de <b>{deliveryAppFee}%</b> da plataforma de delivery, para que você ganhe exatamente o mesmo valor líquido de <b>{formatCurrency(results.netProfit)}</b>, você precisa cobrar:
             </p>
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between bg-zinc-50 dark:bg-zinc-850 p-4 rounded-2xl border border-zinc-150 dark:border-zinc-800 gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between bg-zinc-50 dark:bg-zinc-800 p-4 rounded-2xl border border-zinc-150 dark:border-zinc-800 gap-4">
               <div className="space-y-0.5">
                 <span className="text-[10px] text-zinc-400 uppercase font-bold">Preço de Cardápio iFood</span>
                 <h3 className="text-2xl font-black text-brand-orange">

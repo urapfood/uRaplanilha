@@ -10,6 +10,12 @@
   --color-brand-orange: #F2A93B;
   --color-brand-terracota: #7A2E1D;
   --color-bg-main: #F8F9FA;
+  
+  --color-zinc-150: #ececed;
+  --color-zinc-250: #e1e1e3;
+  --color-zinc-650: #4e4e54;
+  --color-zinc-750: #323238;
+  --color-zinc-850: #202024;
 }
 
 /* Base style resets */
