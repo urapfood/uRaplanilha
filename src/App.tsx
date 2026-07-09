@@ -58,6 +58,7 @@ import AdminLicensesTab from './components/AdminLicensesTab';
 import PaywallScreen from './components/PaywallScreen';
 import LandingSalesPage from './components/LandingSalesPage';
 import FoodQuizScreen from './components/FoodQuizScreen';
+import FeedbackButton from './components/FeedbackButton';
 import { Sliders, Sparkles, Clock, ShieldCheck, XCircle } from 'lucide-react';
 
 export default function App() {
@@ -903,6 +904,7 @@ export default function App() {
         </div>
       )}
 
+      <FeedbackButton />
     </div>
   );
 }

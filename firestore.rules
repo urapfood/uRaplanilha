@@ -8,14 +8,23 @@ service cloud.firestore {
 
     function isSystemAdmin() {
       return request.auth != null && (
-        request.auth.token.email == 'urapfood@gmail.com' ||
-        request.auth.token.email == 'sistema-u-raplanilha-backend@uraplanilha.com'
+        request.auth.uid == '8YlD3mzPgpXZpOxAhwEKEviiaCt1' ||
+        ('email' in request.auth.token && (
+          request.auth.token.email == 'urapfood@gmail.com' ||
+          request.auth.token.email == 'sistema-u-raplanilha-backend@uraplanilha.com'
+        ))
       );
     }
 
     match /webhookLogs/{document} {
       allow read: if isSystemAdmin();
       allow write: if isSystemAdmin() || request.auth == null;
+    }
+
+    match /feedbacks/{document} {
+      allow read: if isSystemAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSystemAdmin();
     }
 
     match /users/{userId} {
