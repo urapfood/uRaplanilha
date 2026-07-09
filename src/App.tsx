@@ -50,10 +50,16 @@ import {
   subscribeToRecipes, saveRecipe, deleteRecipe,
   subscribeToSales, saveSale, deleteSale,
   subscribeToSuppliers, saveSupplier, deleteSupplier,
-  auth
+  auth, db
 } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, onSnapshot, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import AuthScreen from './components/AuthScreen';
+import AdminLicensesTab from './components/AdminLicensesTab';
+import PaywallScreen from './components/PaywallScreen';
+import LandingSalesPage from './components/LandingSalesPage';
+import FoodQuizScreen from './components/FoodQuizScreen';
+import { Sliders, Sparkles, Clock, ShieldCheck, XCircle } from 'lucide-react';
 
 export default function App() {
   // Local storage keys
@@ -62,9 +68,12 @@ export default function App() {
   // State: Dark Mode
   const [darkMode, setDarkMode] = useState<boolean>(true);
 
-  // State: Authentication
+  // State: Authentication and Landing Page flow
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [showAuth, setShowAuth] = useState<boolean>(false);
+  const [authInitialIsLogin, setAuthInitialIsLogin] = useState<boolean>(true);
+  const [cancellingSubscription, setCancellingSubscription] = useState<boolean>(false);
 
   // State: Data arrays from Firestore
   const [products, setProductsState] = useState<Product[]>([]);
@@ -79,11 +88,20 @@ export default function App() {
   const [cleanedTodaySales, setCleanedTodaySales] = useState<boolean>(false);
 
   // State: Navigation Active Tab
-  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores' | 'precificacao';
+  type TabType = 'dashboard' | 'produtos' | 'taxas' | 'custos' | 'simulador' | 'relatorios' | 'receitas' | 'ifood' | 'pdv' | 'fornecedores' | 'precificacao' | 'admin-licenses';
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+
+  // State: User profile and licensing state
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState<boolean>(true);
 
   // State: PDF Export Modal
   const [isPDFModalOpen, setIsPDFModalOpen] = useState<boolean>(false);
+
+  // State: Clear Data Confirm Modal
+  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
+  const [showSegmentConfirm, setShowSegmentConfirm] = useState<boolean>(false);
+  const [isClearing, setIsClearing] = useState<boolean>(false);
 
   // State: Toast / Alert messages
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -96,6 +114,57 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Listen to user profile (licensing, custom field info) in real-time
+  useEffect(() => {
+    if (!currentUser) {
+      setUserProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setUserProfile(snapshot.data());
+      } else {
+        setUserProfile({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          name: currentUser.displayName || 'Usuário uRapFood',
+          licenseStatus: currentUser.email === 'urapfood@gmail.com' ? 'active' : 'pending'
+        });
+      }
+      setProfileLoading(false);
+    }, (error) => {
+      console.error("Error subscribing to user profile document:", error);
+      setProfileLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const isLicenseActive = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.email === 'urapfood@gmail.com') return true;
+    
+    // 1. Check if user is premium
+    if (userProfile?.premium === true || userProfile?.licenseStatus === 'active') {
+      return true;
+    }
+
+    // 2. Check if user is trial and trial has not expired
+    if (userProfile?.status === 'trial' || userProfile?.licenseStatus === 'trial') {
+      if (userProfile?.trialEndsAt) {
+        const trialEndDate = new Date(userProfile.trialEndsAt);
+        const now = new Date();
+        return trialEndDate >= now;
+      }
+    }
+
+    return false;
+  }, [currentUser, userProfile]);
 
   // Programmatically remove any leftover or empty sales for today 2026-07-08 as requested by the user
   useEffect(() => {
@@ -399,6 +468,57 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  const handleCancelSubscription = () => {
+    const whatsAppText = "Olá! Gostaria de alterar ou cancelar minha assinatura do uRapFood.";
+    const whatsAppLink = `https://wa.me/55996507712?text=${encodeURIComponent(whatsAppText)}`;
+    window.open(whatsAppLink, '_blank');
+  };
+
+  const handleChangeSegment = () => {
+    setShowSegmentConfirm(true);
+  };
+
+  const confirmChangeSegment = async () => {
+    try {
+      if (!currentUser) return;
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, { foodType: null, onboardingCompleted: false }, { merge: true });
+      showToast("Selecione seu novo segmento de negócio.", "success");
+      setShowSegmentConfirm(false);
+    } catch (err) {
+      console.error("Error resetting segment:", err);
+      showToast("Erro ao redefinir segmento.", "error");
+    }
+  };
+
+  const handleClearAllData = () => {
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearAllData = async () => {
+    try {
+      if (!currentUser) return;
+      setIsClearing(true);
+      
+      const collectionsToClear = ['products', 'suppliers', 'recipes', 'fixedCosts', 'variableCosts', 'otherRevenues', 'sales'];
+      for (const colName of collectionsToClear) {
+        const colRef = collection(db, 'users', currentUser.uid, colName);
+        const snapshot = await getDocs(colRef);
+        for (const docSnap of snapshot.docs) {
+          await deleteDoc(docSnap.ref);
+        }
+      }
+      
+      showToast("Sua planilha foi zerada e está 100% limpa!", "success");
+      setShowClearConfirm(false);
+    } catch (err) {
+      console.error("Error clearing database:", err);
+      showToast("Erro ao zerar banco de dados.", "error");
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950">
@@ -409,7 +529,61 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen onSuccess={(user) => setCurrentUser(user)} />;
+    if (!showAuth) {
+      return (
+        <LandingSalesPage 
+          onStartTrial={() => {
+            setAuthInitialIsLogin(false);
+            setShowAuth(true);
+          }} 
+          onLogin={() => {
+            setAuthInitialIsLogin(true);
+            setShowAuth(true);
+          }} 
+        />
+      );
+    }
+    return (
+      <AuthScreen 
+        onSuccess={(user) => setCurrentUser(user)} 
+        onBack={() => setShowAuth(false)}
+        initialIsLogin={authInitialIsLogin}
+      />
+    );
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <Loader2 className="w-10 h-10 text-brand-tomato animate-spin mb-4" />
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Verificando Licença...</p>
+        <p className="text-xs text-zinc-400 mt-1">Carregando dados de acesso uRapFood.</p>
+      </div>
+    );
+  }
+
+  if (!isLicenseActive) {
+    return (
+      <PaywallScreen 
+        currentUser={currentUser} 
+        userProfile={userProfile} 
+        showToast={showToast} 
+      />
+    );
+  }
+
+  // Show food/snack selection quiz if onboarding is not completed
+  if (!userProfile?.foodType && currentUser?.email !== 'urapfood@gmail.com') {
+    return (
+      <FoodQuizScreen
+        currentUser={currentUser}
+        userProfile={userProfile}
+        showToast={showToast}
+        onComplete={() => {
+          // snap listener updates state automatically
+        }}
+      />
+    );
   }
 
   return (
@@ -427,6 +601,9 @@ export default function App() {
         onExportPDF={() => setIsPDFModalOpen(true)}
         currentUser={currentUser}
         onLogout={() => signOut(auth)}
+        userProfile={userProfile}
+        onChangeSegment={handleChangeSegment}
+        onClearAllData={handleClearAllData}
       />
 
       {/* 2. Success/Error Toast notification */}
@@ -608,6 +785,64 @@ export default function App() {
             <span>Fornecedores</span>
           </button>
 
+          {/* Admin Licenças Tab */}
+          {currentUser.email === 'urapfood@gmail.com' && (
+            <button
+              onClick={() => setActiveTab('admin-licenses')}
+              className={`flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer whitespace-nowrap lg:w-full border ${
+                activeTab === 'admin-licenses'
+                  ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                  : 'text-purple-200 border-purple-500/20 hover:text-white dark:text-purple-300 hover:bg-purple-500/10'
+              }`}
+              id="tab-btn-admin-licenses"
+            >
+              <Sliders className="w-4 h-4 text-purple-300" />
+              <span>Gerenciar Licenças</span>
+            </button>
+          )}
+
+          {/* Subscription Status Widget */}
+          {currentUser && currentUser.email !== 'urapfood@gmail.com' && (
+            <div className="mt-auto pt-4 border-t border-white/10 dark:border-zinc-800 text-left text-white dark:text-zinc-300 space-y-2 hidden lg:block">
+              <div className="p-3 bg-white/5 dark:bg-zinc-950/40 rounded-lg border border-white/5 dark:border-zinc-800 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-200 dark:text-brand-tomato">
+                  {userProfile?.premium === true || userProfile?.licenseStatus === 'active' ? (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Licença Ativa</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Teste Grátis Ativo</span>
+                    </>
+                  )}
+                </div>
+                
+                <div className="text-[11px] font-semibold text-white/90 dark:text-zinc-200">
+                  {userProfile?.premium === true || userProfile?.licenseStatus === 'active'
+                    ? 'Assinatura Ativa • R$ 15,90'
+                    : 'Acesso para Teste Grátis'}
+                </div>
+
+                {userProfile?.trialEndsAt && !(userProfile?.premium === true || userProfile?.licenseStatus === 'active') && (
+                  <div className="flex items-center gap-1 text-[10px] text-zinc-450 dark:text-zinc-500">
+                    <Clock className="w-3 h-3 text-zinc-400" />
+                    <span>Expira em {new Date(userProfile.trialEndsAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCancelSubscription}
+                  className="w-full mt-2 py-1.5 px-2.5 bg-red-600/20 hover:bg-red-600/30 text-rose-300 hover:text-white rounded-md text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <XCircle className="w-3 h-3" />
+                  <span>Cancelar ou Alterar</span>
+                </button>
+              </div>
+            </div>
+          )}
+
         </nav>
 
         {/* Dynamic content rendering with responsive animations */}
@@ -621,7 +856,7 @@ export default function App() {
           ) : (
             <>
               {activeTab === 'dashboard' && (
-                <Dashboard products={products} taxes={taxes} fixedCosts={fixedCosts} variableCosts={variableCosts} otherRevenues={otherRevenues} sales={sales} />
+                <Dashboard products={products} taxes={taxes} fixedCosts={fixedCosts} variableCosts={variableCosts} otherRevenues={otherRevenues} sales={sales} userProfile={userProfile} />
               )}
               {activeTab === 'pdv' && (
                 <div className="space-y-6">
@@ -690,21 +925,17 @@ export default function App() {
                   setSuppliers={setSuppliers}
                 />
               )}
+              {activeTab === 'admin-licenses' && currentUser.email === 'urapfood@gmail.com' && (
+                <AdminLicensesTab 
+                  currentUser={currentUser} 
+                  showToast={showToast} 
+                />
+              )}
             </>
           )}
         </div>
 
       </main>
-
-      {/* 4. Footer */}
-      <footer className="py-6 border-t border-zinc-200 dark:border-zinc-850 text-center text-xs text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-900/60 mt-auto transition-colors">
-        <div className="max-w-7xl mx-auto px-4">
-          <p>© {new Date().getFullYear()} uRaplanilha • Painel de Inteligência Financeira • uRapFood</p>
-          <p className="mt-1 font-medium text-brand-tomato/70 dark:text-brand-orange/60">
-            Simplificando a precificação do delivery e iFood
-          </p>
-        </div>
-      </footer>
 
       {/* PDF Export Customizer Modal */}
       <PDFExportModal
@@ -715,6 +946,85 @@ export default function App() {
         fixedCosts={fixedCosts}
         recipes={recipes}
       />
+
+      {/* Clear Data Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center gap-3 text-red-500 mb-4">
+              <AlertCircle className="w-8 h-8 shrink-0" />
+              <div>
+                <h3 className="text-lg font-black tracking-tight text-zinc-950 dark:text-white">ATENÇÃO: Limpar Tudo?</h3>
+                <p className="text-xs text-red-500 font-semibold uppercase tracking-wider">Ação Irreversível</p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
+              Você tem certeza de que deseja <span className="font-bold text-red-500">APAGAR ABSOLUTAMENTE TUDO</span> de sua conta? 
+              Isso excluirá todos os produtos cadastrados, receitas de insumos, fornecedores salvos, custos fixos/variáveis e vendas registradas. 
+              Sua planilha voltará ao estado 100% vazio (zerada) para você iniciar do zero.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                disabled={isClearing}
+                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmClearAllData}
+                disabled={isClearing}
+                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black tracking-wide flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md shadow-red-600/10"
+              >
+                {isClearing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Limpando Tudo...</span>
+                  </>
+                ) : (
+                  <span>Sim, Apagar Tudo</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Segment Change Confirmation Modal */}
+      {showSegmentConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center gap-3 text-brand-tomato mb-4">
+              <AlertCircle className="w-8 h-8 shrink-0 text-brand-tomato" />
+              <div>
+                <h3 className="text-lg font-black tracking-tight text-zinc-950 dark:text-white">Alterar Segmento?</h3>
+                <p className="text-xs text-brand-tomato font-semibold uppercase tracking-wider">Ação Recomendada</p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
+              Deseja realmente alterar seu segmento? Isso permitirá selecionar um novo tipo de negócio no Quiz/Onboarding (os dados já cadastrados de produtos, custos e vendas serão mantidos).
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowSegmentConfirm(false)}
+                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmChangeSegment}
+                className="px-4 py-2.5 rounded-xl bg-brand-tomato hover:bg-brand-tomato/90 text-white text-xs font-black tracking-wide cursor-pointer shadow-md shadow-brand-tomato/15"
+              >
+                Sim, Mudar de Segmento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

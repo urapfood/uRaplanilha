@@ -21,10 +21,12 @@ import {
 
 interface AuthScreenProps {
   onSuccess: (user: any) => void;
+  onBack?: () => void;
+  initialIsLogin?: boolean;
 }
 
-export default function AuthScreen({ onSuccess }: AuthScreenProps) {
-  const [isLogin, setIsLogin] = useState<boolean>(true);
+export default function AuthScreen({ onSuccess, onBack, initialIsLogin = true }: AuthScreenProps) {
+  const [isLogin, setIsLogin] = useState<boolean>(initialIsLogin);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -35,6 +37,8 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [showSuccessScreen, setShowSuccessScreen] = useState<boolean>(false);
+  const [registeredUser, setRegisteredUser] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +89,10 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           displayName: name.trim()
         });
 
-        // Save additional user info to Firestore
+        // Save additional user info to Firestore with trial fields
+        const nowStr = new Date().toISOString();
+        const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        
         try {
           const userDocRef = doc(db, 'users', userCredential.user.uid);
           await setDoc(userDocRef, {
@@ -94,14 +101,21 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
             companyName: companyName.trim(),
             phone: phone.trim(),
             email: email.trim(),
-            createdAt: new Date().toISOString()
+            createdAt: nowStr,
+            plan: 'trial',
+            premium: false,
+            trialStartedAt: nowStr,
+            trialEndsAt: sevenDaysLater,
+            status: 'trial',
+            licenseStatus: 'trial',
+            licenseExpiresAt: sevenDaysLater
           });
         } catch (dbErr) {
           console.error('Failed to save additional user profile in Firestore:', dbErr);
-          // Don't block sign-up if just firestore profile doc write failed (e.g. permission or index latency)
         }
 
-        onSuccess(userCredential.user);
+        setRegisteredUser(userCredential.user);
+        setShowSuccessScreen(true);
       }
     } catch (err: any) {
       console.error('Authentication Error:', err);
@@ -139,6 +153,16 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         {/* Subtle decorative background gradient */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-brand-tomato to-orange-500"></div>
 
+        {onBack && (
+          <button 
+            onClick={onBack}
+            className="absolute top-4 left-4 text-xs font-bold text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-200 flex items-center gap-1 transition-all cursor-pointer"
+            id="auth-back-btn"
+          >
+            ← Voltar
+          </button>
+        )}
+
         {/* Brand Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-3 bg-zinc-900/10 dark:bg-zinc-100/5 p-2 rounded-2xl">
@@ -157,216 +181,238 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           </p>
         </div>
 
-        {/* Title and subtitle */}
-        <div className="mb-6">
-          <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
-            {isLogin ? 'Faça login na sua conta' : 'Crie sua conta grátis'}
-          </h2>
-          <p className="text-xs text-zinc-400">
-            {isLogin 
-              ? 'Insira suas credenciais para acessar seus dados separados e seguros.' 
-              : 'Comece agora a gerenciar seu cardápio, custos e vendas.'}
-          </p>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 flex items-start gap-3 animate-fade-in">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-            <div className="text-xs font-medium text-red-700 dark:text-red-300">
-              {error}
+        {showSuccessScreen ? (
+          <div className="text-center space-y-6 py-4 animate-fade-in">
+            <div className="inline-flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-full text-emerald-500">
+              <CheckCircle className="w-12 h-12" />
             </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-black text-zinc-900 dark:text-white">Cadastro Realizado!</h2>
+              <p className="text-sm font-medium text-zinc-650 dark:text-zinc-300 leading-relaxed">
+                Seu teste foi iniciado com sucesso. Você possui 7 dias gratuitos.
+              </p>
+            </div>
+            <button
+              onClick={() => onSuccess(registeredUser)}
+              className="w-full bg-brand-tomato hover:bg-brand-tomato/90 text-white py-3.5 px-4 rounded-xl font-black text-sm shadow-md shadow-brand-tomato/10 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer mt-4"
+            >
+              Acessar o Painel
+            </button>
           </div>
-        )}
-
-        {/* Authentication Form */}
-        <form onSubmit={handleSubmit} className="space-y-4" id="auth-form">
-          {!isLogin && (
-            <>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Seu Nome
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <User className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: João Silva"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Nome da Empresa
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Building className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Pizzaria Bella Italia"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Telefone / WhatsApp
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Phone className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                  </div>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Ex: (11) 99999-9999"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-              E-mail
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Mail className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-              </div>
-              <input
-                type="email"
-                required
-                placeholder="seu-email@provedor.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
-                disabled={loading}
-              />
+        ) : (
+          <>
+            {/* Title and subtitle */}
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
+                {isLogin ? 'Faça login na sua conta' : 'Crie sua conta grátis'}
+              </h2>
+              <p className="text-xs text-zinc-400">
+                {isLogin 
+                  ? 'Insira suas credenciais para acessar seus dados separados e seguros.' 
+                  : 'Comece agora a gerenciar seu cardápio, custos e vendas.'}
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                {isLogin ? 'Senha' : 'Crie uma Senha'}
-              </label>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Lock className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+            {/* Error message */}
+            {error && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 flex items-start gap-3 animate-fade-in">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <div className="text-xs font-medium text-red-700 dark:text-red-300">
+                  {error}
+                </div>
               </div>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="******"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-10 py-3 text-sm transition-all outline-hidden"
-                disabled={loading}
-              />
+            )}
+
+            {/* Authentication Form */}
+            <form onSubmit={handleSubmit} className="space-y-4" id="auth-form">
+              {!isLogin && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Seu Nome
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <User className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: João Silva"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Nome da Empresa
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Building className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Pizzaria Bella Italia"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Telefone / WhatsApp
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Phone className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Ex: (11) 99999-9999"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  E-mail
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Mail className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="seu-email@provedor.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm transition-all outline-hidden"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    {isLogin ? 'Senha' : 'Crie uma Senha'}
+                  </label>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="******"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-10 py-3 text-sm transition-all outline-hidden"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-200 cursor-pointer"
+                    disabled={loading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {!isLogin && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Repetir a Senha
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="******"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-10 py-3 text-sm transition-all outline-hidden"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-200 cursor-pointer"
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                type="submit"
                 disabled={loading}
+                className="w-full bg-brand-tomato hover:bg-brand-tomato/90 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md shadow-brand-tomato/10 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 disabled:pointer-events-none"
+                id="auth-submit-btn"
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </>
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <span>{isLogin ? 'Entrar' : 'Cadastrar Minha Conta'}</span>
                 )}
               </button>
+            </form>
+
+            {/* Toggle Login/Signup */}
+            <div className="mt-6 text-center border-t border-zinc-200 dark:border-zinc-800 pt-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {isLogin ? 'Não tem uma conta?' : 'Já possui uma conta?'}
+              </p>
+              <button
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError(null);
+                }}
+                className="mt-1 text-xs font-bold text-brand-tomato hover:underline cursor-pointer"
+                disabled={loading}
+              >
+                {isLogin ? 'Crie uma conta agora' : 'Faça login aqui'}
+              </button>
             </div>
-          </div>
-
-          {!isLogin && (
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                Repetir a Senha
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                </div>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  placeholder="******"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-zinc-100/50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 focus:border-brand-tomato dark:focus:border-brand-tomato text-zinc-800 dark:text-zinc-200 rounded-xl pl-10 pr-10 py-3 text-sm transition-all outline-hidden"
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-                  disabled={loading}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-tomato hover:bg-brand-tomato/90 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md shadow-brand-tomato/10 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 disabled:pointer-events-none"
-            id="auth-submit-btn"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Processando...</span>
-              </>
-            ) : (
-              <span>{isLogin ? 'Entrar' : 'Cadastrar Minha Conta'}</span>
-            )}
-          </button>
-        </form>
-
-        {/* Toggle Login/Signup */}
-        <div className="mt-6 text-center border-t border-zinc-200 dark:border-zinc-800 pt-5">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {isLogin ? 'Não tem uma conta?' : 'Já possui uma conta?'}
-          </p>
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-            }}
-            className="mt-1 text-xs font-bold text-brand-tomato hover:underline cursor-pointer"
-            disabled={loading}
-          >
-            {isLogin ? 'Crie uma conta agora' : 'Faça login aqui'}
-          </button>
+          </>
+        )}
         </div>
       </div>
-    </div>
   );
 }

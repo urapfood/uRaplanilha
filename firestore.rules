@@ -6,34 +6,31 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /users/{userId}/products/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isSystemAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'urapfood@gmail.com' ||
+        request.auth.token.email == 'sistema-u-raplanilha-backend@uraplanilha.com'
+      );
     }
-    match /users/{userId}/taxes/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    match /webhookLogs/{document} {
+      allow read: if isSystemAdmin();
+      allow write: if isSystemAdmin() || request.auth == null;
     }
-    match /users/{userId}/fixedCosts/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/recipes/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/sales/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/suppliers/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/variableCosts/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/otherRevenues/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow reading and writing the user profile document itself
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if (request.auth != null && request.auth.uid == userId) || isSystemAdmin() || request.auth == null;
+      allow create: if (request.auth != null && request.auth.uid == userId) || isSystemAdmin() || request.resource.data.isBackendUpdate == true;
+      allow update: if isSystemAdmin() || (
+        request.auth != null && request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['licenseStatus', 'licenseExpiresAt', 'asaasCustomerId', 'asaasPaymentId', 'asaasPaymentUrl'])
+      ) || (
+        request.resource.data.isBackendUpdate == true
+      );
+    }
+
+    match /users/{userId}/{subcollection=**} {
+      allow read, write: if (request.auth != null && request.auth.uid == userId) || isSystemAdmin();
     }
   }
 }

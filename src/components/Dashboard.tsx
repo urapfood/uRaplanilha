@@ -36,9 +36,10 @@ interface DashboardProps {
   otherRevenues: OtherRevenue[];
   sales?: Sale[];
   suppliers?: SupplierItem[];
+  userProfile?: any;
 }
 
-export default function Dashboard({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [], suppliers = [] }: DashboardProps) {
+export default function Dashboard({ products, taxes, fixedCosts, variableCosts, otherRevenues, sales = [], suppliers = [], userProfile }: DashboardProps) {
   const activeTaxRate = useMemo(() => getActiveTaxPercentage(taxes), [taxes]);
 
   // Compute stats
@@ -153,6 +154,31 @@ export default function Dashboard({ products, taxes, fixedCosts, variableCosts, 
   return (
     <div className="space-y-8 animate-fade-in">
       
+      {/* Personalized Segment Greeting Banner */}
+      {userProfile?.foodType && (
+        <div className="bg-gradient-to-r from-brand-tomato/15 to-orange-500/5 dark:from-brand-tomato/10 dark:to-zinc-900 border border-brand-tomato/20 dark:border-brand-tomato/10 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-zinc-950 dark:text-white flex items-center gap-2">
+              <span>{userProfile.foodSegmentName || 'Seu Negócio'}</span>
+              <span>{
+                userProfile.foodType === 'hamburgueria' ? '🍔' :
+                userProfile.foodType === 'pizzaria' ? '🍕' :
+                userProfile.foodType === 'sushi' ? '🍣' :
+                userProfile.foodType === 'pastelaria' ? '🥟' :
+                userProfile.foodType === 'acai' ? '🍧' :
+                userProfile.foodType === 'hotdog' ? '🌭' : '🍽️'
+              }</span>
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+              Sua planilha está configurada para otimizar a precificação e analisar as margens para {userProfile.foodSegmentName || 'seu segmento'}.
+            </p>
+          </div>
+          <div className="text-[10px] uppercase font-black tracking-wider text-brand-tomato bg-brand-tomato/10 px-3 py-1.5 rounded-full border border-brand-tomato/10 shrink-0">
+            Foco: Custos Unitários & Delivery
+          </div>
+        </div>
+      )}
+
       {/* 4 Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         

@@ -9,7 +9,8 @@ import {
   Percent, 
   ShoppingBag,
   FileText,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-react';
 import { formatPercent } from '../utils';
 
@@ -24,6 +25,9 @@ interface HeaderProps {
   onExportPDF: () => void;
   currentUser: any;
   onLogout: () => void;
+  userProfile?: any;
+  onChangeSegment?: () => void;
+  onClearAllData?: () => void;
 }
 
 export default function Header({
@@ -37,11 +41,27 @@ export default function Header({
   onExportPDF,
   currentUser,
   onLogout,
+  userProfile,
+  onChangeSegment,
+  onClearAllData,
 }: HeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const getSegmentLabel = (type: string) => {
+    switch (type) {
+      case 'hamburgueria': return 'Hambúrgueres 🍔';
+      case 'pizzaria': return 'Pizza 🍕';
+      case 'sushi': return 'Sushi 🍣';
+      case 'pastelaria': return 'Pastel 🥟';
+      case 'acai': return 'Açaí 🍧';
+      case 'hotdog': return 'Hot Dog 🌭';
+      case 'geral': return 'Alimentação 🍽️';
+      default: return '';
+    }
   };
 
   return (
@@ -68,9 +88,33 @@ export default function Header({
                   uRapFood iFood
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
-                Precificação & Controle Financeiro
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
+                  Precificação & Controle Financeiro
+                </p>
+                {userProfile?.foodType && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={onChangeSegment}
+                      className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-brand-tomato/10 text-brand-tomato border border-brand-tomato/20 hover:bg-brand-tomato hover:text-white rounded-md transition-all cursor-pointer flex items-center gap-1"
+                      title="Alterar seu tipo de negócio / segmento de comida"
+                    >
+                      <span>{getSegmentLabel(userProfile.foodType)}</span>
+                      <span className="text-[7px]">▼</span>
+                    </button>
+                    {onClearAllData && (
+                      <button
+                        onClick={onClearAllData}
+                        className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white rounded-md transition-all cursor-pointer flex items-center gap-1"
+                        title="Zerar Planilha (Limpar tudo do banco de dados)"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Zerar Planilha</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Plus, 
   Search, 
@@ -206,123 +207,123 @@ export default function SupplierTab({ suppliers, setSuppliers }: SupplierTabProp
       )}
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs p-4 overflow-y-auto flex items-start justify-center" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-zinc-950/40 dark:bg-zinc-950/70 backdrop-blur-xs transition-opacity" onClick={() => setIsModalOpen(false)} />
+          
+          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl text-left shadow-xl transform transition-all w-full max-w-2xl my-4 sm:my-8 flex flex-col h-auto border border-zinc-200/80 dark:border-zinc-800">
             
-            <div className="fixed inset-0 bg-zinc-950/40 dark:bg-zinc-950/70 backdrop-blur-xs transition-opacity" onClick={() => setIsModalOpen(false)} />
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            
-            <div className="relative z-10 inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-zinc-200/80 dark:border-zinc-800">
-              
-              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white font-serif italic" id="modal-title">
-                    {editingId ? 'Editar Insumo' : 'Novo Insumo e Fornecedor'}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-zinc-400 hover:text-brand-tomato hover:bg-brand-tomato/10 p-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-6 bg-white dark:bg-zinc-900">
-                <div className="space-y-4">
-                  
-                  <div>
-                    <label htmlFor="sup-name" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                      Insumo (Nome) *
-                    </label>
-                    <input
-                      type="text"
-                      id="sup-name"
-                      placeholder="Ex: Queijo Mussarela"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="sup-price" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                        Preço (R$) *
-                      </label>
-                      <input
-                        type="number"
-                        id="sup-price"
-                        step="0.01"
-                        min="0"
-                        placeholder="Ex: 35.90"
-                        value={formPrice}
-                        onChange={(e) => setFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="sup-unit" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                        Unidade de Medida *
-                      </label>
-                      <input
-                        type="text"
-                        id="sup-unit"
-                        placeholder="Ex: kg, unidade, L, cx"
-                        value={formUnit}
-                        onChange={(e) => setFormUnit(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="sup-supplier" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">
-                      Nome do Fornecedor (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      id="sup-supplier"
-                      placeholder="Ex: Atacadão, Frigorífico Silva..."
-                      value={formSupplierName}
-                      onChange={(e) => setFormSupplierName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
-                    />
-                  </div>
-
-                </div>
-
-                {formError && (
-                  <div className="mt-4 flex items-center space-x-2 text-xs text-brand-tomato bg-brand-tomato/5 p-3 rounded-xl border border-brand-tomato/10">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-zinc-50 dark:bg-zinc-950 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-end space-x-3 rounded-b-2xl">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-bold uppercase tracking-wider rounded-lg cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="px-5 py-2 bg-brand-tomato hover:bg-brand-tomato/95 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm flex items-center cursor-pointer"
-                >
-                  Salvar
-                </button>
-              </div>
-
+            {/* Modal Header */}
+            <div className="p-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-50/50 dark:bg-zinc-950/20">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center space-x-2" id="modal-title">
+                <span className="font-sans font-bold">{editingId ? 'Editar Insumo' : 'Novo Insumo e Fornecedor'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-zinc-400 hover:text-brand-tomato hover:bg-brand-tomato/10 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-4">
+                
+                <div>
+                  <label htmlFor="sup-name" className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Insumo (Nome) *
+                  </label>
+                  <input
+                    type="text"
+                    id="sup-name"
+                    required
+                    placeholder="Ex: Queijo Mussarela"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="sup-price" className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Preço (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      id="sup-price"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="Ex: 35.90"
+                      value={formPrice}
+                      onChange={(e) => setFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="sup-unit" className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Unidade de Medida *
+                    </label>
+                    <input
+                      type="text"
+                      id="sup-unit"
+                      required
+                      placeholder="Ex: kg, unidade, L, cx"
+                      value={formUnit}
+                      onChange={(e) => setFormUnit(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="sup-supplier" className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Nome do Fornecedor (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    id="sup-supplier"
+                    placeholder="Ex: Atacadão, Frigorífico Silva..."
+                    value={formSupplierName}
+                    onChange={(e) => setFormSupplierName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-brand-tomato dark:text-white"
+                  />
+                </div>
+
+              </div>
+
+              {formError && (
+                <div className="flex items-center space-x-2 text-xs text-brand-tomato bg-brand-tomato/5 p-3 rounded-xl border border-brand-tomato/10 shrink-0">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-zinc-50/50 dark:bg-zinc-950/40 px-5 py-3.5 border-t border-zinc-100 dark:border-zinc-800 flex justify-end space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-650 text-zinc-700 dark:text-zinc-200 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-5 py-2 bg-brand-tomato hover:bg-brand-tomato/90 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                Salvar
+              </button>
+            </div>
+
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
